@@ -1,0 +1,57 @@
+# 🚌 Backend - Planificador de Rutas de Micros Santa Cruz
+
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791.svg)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)
+
+Este repositorio contiene el código fuente del **Backend** para el Sistema de Información Geográfica (SIG) de transporte público en Santa Cruz de la Sierra. Provee una API RESTful de alto rendimiento para la gestión de rutas, planificación de viajes y administración de la red de transporte.
+
+## 📂 Estructura del Proyecto
+
+```
+backend/
+├── app/                # Código fuente de la aplicación
+│   ├── api/            # Controladores / Endpoints
+│   ├── core/           # Configuración y seguridad
+│   ├── crud/           # Operaciones de Base de Datos
+│   ├── models/         # Modelos SQLAlchemy
+│   ├── schemas/        # Esquemas Pydantic (DTOs)
+│   └── services/       # Lógica de Negocio
+├── docs/               # Documentación detallada del proyecto
+├── tests/              # Tests unitarios y de integración
+├── Dockerfile          # Definición de imagen Docker
+└── docker-compose.yml  # Orquestación de servicios
+```
+
+## 🚀 Inicio Rápido
+
+La forma más sencilla de ejecutar el proyecto es utilizando Docker.
+
+1.  **Clonar el repositorio**
+2.  **Navegar al directorio:** `cd backend`
+3.  **Ejecutar:**
+    ```bash
+    docker-compose up --build
+    ```
+
+La API estará disponible en `http://localhost:8000`.
+
+## 📚 Documentación
+
+Para información detallada sobre la arquitectura, endpoints y guías de desarrollo, por favor consulta la carpeta `docs/`:
+
+- [📄 Documentación Completa del Proyecto](docs/README.md)
+
+## 🧪 Tests
+
+Para ejecutar los tests automatizados:
+
+```bash
+docker-compose exec web pytest
+```
+
+## 👥 Autores
+
+- **Equipo SIG - UAGRM**
+- Facultad de Ciencias de la Computación
