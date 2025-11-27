@@ -2,21 +2,28 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, patch
 import sys
+import os
 
-# Mock modules that might require binary dependencies
-sys.modules["geoalchemy2"] = MagicMock()
-sys.modules["psycopg2"] = MagicMock()
-sys.modules["sqlalchemy.dialects.postgresql"] = MagicMock()
+# --- MOCKING DEPENDENCIES BEFORE IMPORTS ---
+mock_geoalchemy2 = MagicMock()
+sys.modules["geoalchemy2"] = mock_geoalchemy2
+sys.modules["geoalchemy2.types"] = MagicMock()
 
-# Now we can import app modules
-# We need to patch the imports inside the modules if they import at top level
-# But since we mocked sys.modules, it should be fine for direct imports.
+mock_psycopg2 = MagicMock()
+sys.modules["psycopg2"] = mock_psycopg2
 
+mock_sqlalchemy_postgres = MagicMock()
+sys.modules["sqlalchemy.dialects.postgresql"] = mock_sqlalchemy_postgres
+
+# --- SET ENV VARS BEFORE IMPORTING CONFIG ---
+os.environ["DATABASE_URL"] = "postgresql://user:password@localhost/test_db"
+
+# --- IMPORTS ---
 from app.main import app
 from app.database import get_db
 from app.models.user import User
 
-# Mock DB dependency
+# --- FIXTURES & OVERRIDES ---
 def override_get_db():
     try:
         db = MagicMock()
@@ -28,13 +35,14 @@ app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
 
+# --- TESTS ---
+
 def test_read_main():
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {"message": "Welcome to Planificador Rutas Micros SC API"}
 
 def test_login_success():
-    # Mock CRUD and Auth
     mock_user = User(id_usuario=1, correo="test@example.com", contraseña="hashed_password", rol="Usuario")
     
     with patch("app.crud.user.crud_user.get_by_email", return_value=mock_user):
@@ -44,9 +52,17 @@ def test_login_success():
                 assert response.status_code == 200
                 assert "access_token" in response.json()
 
-def test_login_failure():
+def test_login_failure_wrong_password():
+    mock_user = User(id_usuario=1, correo="test@example.com", contraseña="hashed_password", rol="Usuario")
+    
+    with patch("app.crud.user.crud_user.get_by_email", return_value=mock_user):
+        with patch("app.services.auth_service.AuthService.verify_password", return_value=False):
+            response = client.post("/api/v1/auth/login", json={"correo": "test@example.com", "contraseña": "wrong_password"})
+            assert response.status_code == 401
+
+def test_login_failure_user_not_found():
     with patch("app.crud.user.crud_user.get_by_email", return_value=None):
-        response = client.post("/api/v1/auth/login", json={"correo": "wrong@example.com", "contraseña": "password"})
+        response = client.post("/api/v1/auth/login", json={"correo": "nonexistent@example.com", "contraseña": "password"})
         assert response.status_code == 401
 
 def test_get_lines_empty():

@@ -9,6 +9,8 @@
 2. [Arquitectura del Sistema](#-arquitectura-del-sistema)
 3. [Tecnologías Utilizadas](#-tecnologías-utilizadas)
 4. [Instalación y Despliegue](#-instalación-y-despliegue)
+    - [Opción A: Docker (Recomendado)](#opción-a-docker-recomendado)
+    - [Opción B: Instalación Local (Manual)](#opción-b-instalación-local-manual)
 5. [Documentación de la API](#-documentación-de-la-api)
 6. [Modelo de Datos](#-modelo-de-datos)
 7. [Testing](#-testing)
@@ -64,11 +66,9 @@ graph TD
 
 ## 🚀 Instalación y Despliegue
 
-### Requisitos Previos
-- [Docker](https://www.docker.com/) y Docker Compose
-- Git
+### Opción A: Docker (Recomendado)
 
-### Despliegue Rápido (Recomendado)
+Esta es la forma más sencilla de ejecutar el proyecto, ya que configura automáticamente la base de datos y las dependencias.
 
 1.  **Clonar el repositorio:**
     ```bash
@@ -76,20 +76,54 @@ graph TD
     cd backend
     ```
 
-2.  **Configurar variables de entorno:**
-    Copia el archivo de ejemplo y ajústalo si es necesario.
-    ```bash
-    cp .env.example .env
-    ```
-
-3.  **Iniciar los servicios:**
+2.  **Iniciar los servicios:**
     ```bash
     docker-compose up --build -d
     ```
 
-4.  **Verificar instalación:**
-    - API: `http://localhost:8000`
-    - Documentación Interactiva: `http://localhost:8000/docs`
+3.  **Listo!** La API estará en `http://localhost:8000`.
+
+### Opción B: Instalación Local (Manual)
+
+Si prefieres ejecutar el proyecto directamente en tu máquina o no tienes Docker:
+
+#### 1. Requisitos Previos
+- **Python 3.9+** instalado.
+- **PostgreSQL** instalado y ejecutándose.
+- **PostGIS**: Debes instalar la extensión PostGIS en tu servidor PostgreSQL.
+
+#### 2. Configuración de la Base de Datos
+1.  Crea una base de datos (ej. `transporte_db`).
+2.  Habilita PostGIS en tu base de datos ejecutando el siguiente comando SQL:
+    ```sql
+    CREATE EXTENSION postgis;
+    ```
+
+#### 3. Configuración del Entorno Python
+1.  Navega a la carpeta `backend`.
+2.  Crea un entorno virtual:
+    ```bash
+    python -m venv venv
+    ```
+3.  Activa el entorno:
+    - **Windows**: `venv\Scripts\activate`
+    - **Linux/Mac**: `source venv/bin/activate`
+4.  Instala las dependencias:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+#### 4. Variables de Entorno
+1.  Crea un archivo `.env` basado en `.env.example`.
+2.  Edita `.env` y actualiza `DATABASE_URL` con tus credenciales locales:
+    ```properties
+    DATABASE_URL=postgresql://usuario:password@localhost:5432/transporte_db
+    ```
+
+#### 5. Ejecutar el Servidor
+```bash
+uvicorn app.main:app --reload
+```
 
 ---
 
@@ -127,10 +161,15 @@ El esquema de base de datos está diseñado para soportar operaciones espaciales
 
 El proyecto incluye una suite de tests para asegurar la calidad del código.
 
-Para ejecutar los tests (dentro del contenedor Docker):
-
+### Ejecutar Tests con Docker
 ```bash
 docker-compose exec web pytest
+```
+
+### Ejecutar Tests Localmente
+Asegúrate de tener las dependencias de desarrollo instaladas y la base de datos de test configurada.
+```bash
+pytest
 ```
 
 ---
