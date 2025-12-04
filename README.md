@@ -26,13 +26,47 @@ backend/
 
 ## 🚀 Inicio Rápido
 
-La forma más sencilla de ejecutar el proyecto es utilizando Docker.
+La forma más sencilla de ejecutar el proyecto es utilizando Docker, pero también puedes ejecutarlo manualmente.
+
+### Opción 1: Docker (Recomendado)
 
 1.  **Clonar el repositorio**
 2.  **Navegar al directorio:** `cd backend`
 3.  **Ejecutar:**
     ```bash
     docker-compose up --build
+    ```
+
+La API estará disponible en `http://localhost:8000`.
+
+### Opción 2: Ejecución Manual (Virtual Environment)
+
+Si prefieres ejecutarlo localmente sin Docker, sigue estos pasos:
+
+1.  **Crear un entorno virtual:**
+
+    *   **Windows:**
+        ```bash
+        python -m venv venv
+        .\venv\Scripts\activate
+        ```
+    *   **Linux / macOS:**
+        ```bash
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+
+2.  **Instalar dependencias:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3.  **Configurar variables de entorno:**
+    Asegúrate de tener un archivo `.env` configurado. Puedes usar `.env.example` como base.
+
+4.  **Ejecutar el servidor:**
+    ```bash
+    uvicorn app.main:app --reload
     ```
 
 La API estará disponible en `http://localhost:8000`.

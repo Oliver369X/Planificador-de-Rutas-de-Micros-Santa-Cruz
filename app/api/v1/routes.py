@@ -23,3 +23,14 @@ def create_route(
         raise HTTPException(status_code=403, detail="No autorizado")
     
     return crud_route.create(db, route)
+
+@router.post("/plan")
+def plan_route(
+    origin_lat: float,
+    origin_lon: float,
+    dest_lat: float,
+    dest_lon: float,
+    db: Session = Depends(get_db)
+):
+    from app.services.route_planner import route_planner
+    return route_planner.plan_route(db, origin_lat, origin_lon, dest_lat, dest_lon)

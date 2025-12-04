@@ -1,0 +1,716 @@
+{
+  "plan": {
+    "itineraries": [
+      {
+        "legs": [
+          {
+            "mode": "WALK",
+            "startTime": 1764874872372,
+            "endTime": 1764875296372,
+            "duration": 424.0,
+            "distance": 565.4668128561077,
+            "from": {
+              "name": "Origin",
+              "lat": -17.7833,
+              "lon": -63.1821,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 4 #15",
+              "lat": -17.7863122,
+              "lon": -63.1777971,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "rhpkBbgs`KxQ{Y",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "BUS",
+            "startTime": 1764875596372,
+            "endTime": 1764875715372,
+            "duration": 119.0,
+            "distance": 662.4788123969722,
+            "from": {
+              "name": "Parada 4 #15",
+              "lat": -17.7863122,
+              "lon": -63.1777971,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 17 #2",
+              "lat": -17.7865326,
+              "lon": -63.1715445,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "52",
+            "routeId": "pattern:46:vuelta",
+            "routeShortName": "52",
+            "routeLongName": "L\u00ednea 52",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "vazkB~ny`KxA~BlD_@PGDKImADSPI~Hm@`@CXBVJxBbAnFjC`Ah@tBnApAh@jEfBrBz@FMkEiB_CaAcAe@sAw@gAo@sCsA_Bw@wCsAWKa@Ae@@wCRcE\\iGj@sAgCkDXKK?a@Le@tEeC|AcAVm@He@rDcKtCoI~A{DvBsFfCqGxAuDi@a@}@YeBm@_Bi@aBa@cBSaBVeB`@aB`@aBT}AXaBOeAqAaAoA}@kAgAoAeAsAaAiAy@gAgAg@u@xAy@bBs@|Am@tAs@zAoAKmn@}VkAk@u@mA}@eAu@tA}@F_Aq@cBVwD_N{JjB}A_HsG^_BmHeByK^cBr@qALQXOJU@UUg@i@QcBn@{ALaB?{AA{NTBbC?tB?dB?fBoAB{Al@mAfAqAjAaAbAgA`AkAdAgAbAiAQaIkM{BnBmAlAuAbAqAnAgAjAaAnAk@`@_KoLSYa@i@WSYSEE_A}@kXa\\Wo@HGDI@G@OCKEIGGIEIAK@KBEDEFUDi@DsBLsBLoK|@e@HIAI?s@iEy@{Fo@}Dm@iEg@gEsDyTYiBYgBk@sDwCZ{CVwCRkEVOuE]{GQwFWwEHCFCFGBGr@IbCSjGe@LFVCFIBMAOIOQIUe@o@eCIeA?_@Hk@rBoEjAuC|@eCp@{CpBqLLUz@oB|@iFx@kAhA[z@CxO|BtA@~AGzAQxFiAr@MVDVK\\i@EcCBmBHaBHcBPoBNeBXaB^_B~@qAf@sAMs@xMec@zAgAfAcAB_Be@gBpIoh@ZaBD{@h@oDJo@j@kL|@mRHOpAB~{@tFTRbAHlAH|AHxAL~AXvAh@pAt@fA`AjAlAbAfAbAhAbAjAbAfA~@p@~@aAjAoAnAqA~@gAdAkAbAeAfAgAbAeAbAiA`AeAhAoAbAgAfAiA~@cAbAiAfAmAbAeAbAaA`AoAbAgAdAkAnAuAd@qA{AwA{DaJ_LmXm@}AcL{Xi@yAo@uAm@wAa@wApAo@~Ay@zAo@tAm@xAi@rAk@xAs@pAo@rAo@tAy@tAm@rAi@pAk@tAm@EkBq@aBm@yAk@{Ak@wAs@uAe@wAm@aBq@yAc@wAcAcAmA{@[oAf@{Ab@aBf@}Ak@oA{Am@yAg@kBi@gBg@{Ai@_@yAk@{Ao@{Aq@{Ag@sAi@wAk@{Ai@wAFaBw@}Ag@_Bq@{As@yAi@_Bk@wAo@{Ak@uAi@wAi@oAk@wA{AEo@aAGcBC}AIiBImBEuBEwBGiBm@yAGeBGmBEkBIeBIeBGmBi@}Ks@wJ_@eJoAgZbCSu@w@aAcFt@ILgUD_PtJFhQD",
+              "length": 366
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": true,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "WALK",
+            "startTime": 1764875715372,
+            "endTime": 1764876029372,
+            "duration": 314.0,
+            "distance": 418.8036288803958,
+            "from": {
+              "name": "Parada 17 #2",
+              "lat": -17.7865326,
+              "lon": -63.1715445,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Destination",
+              "lat": -17.79,
+              "lon": -63.17,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "x|pkBbeq`KtTsH",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          }
+        ],
+        "startTime": 1764874872372,
+        "endTime": 1764876029372,
+        "duration": 1157,
+        "walkTime": 738,
+        "walkDistance": 984.2704417365035,
+        "transfers": 0,
+        "transitTime": 119,
+        "waitingTime": 300,
+        "elevationLost": 0.0,
+        "elevationGained": 0.0,
+        "tooSloped": false
+      },
+      {
+        "legs": [
+          {
+            "mode": "WALK",
+            "startTime": 1764874872372,
+            "endTime": 1764875301372,
+            "duration": 429.0,
+            "distance": 572.0354703330343,
+            "from": {
+              "name": "Origin",
+              "lat": -17.7833,
+              "lon": -63.1821,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 85 #8",
+              "lat": -17.78834,
+              "lon": -63.1831831,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "rhpkBbgs`Kn^vE",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "BUS",
+            "startTime": 1764875601372,
+            "endTime": 1764875825372,
+            "duration": 224.0,
+            "distance": 1248.568928690216,
+            "from": {
+              "name": "Parada 85 #8",
+              "lat": -17.78834,
+              "lon": -63.1831831,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 17 #2",
+              "lat": -17.7865326,
+              "lon": -63.1715445,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "85",
+            "routeId": "pattern:70:vuelta",
+            "routeShortName": "85",
+            "routeLongName": "L\u00ednea 85",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "nh_lBbyo`KpHqGv@vAnA|Bz@YvKbKxVuTcOqQtR{J`Q}I|LkH~C]jGoCbi@kRFzEjCxI}AlCgAfAgAz@KxAkA|@kAv@iAz@oA|@qA|@eAv@mAx@mAz@mAz@qA|@iAv@kAx@mA~@qA|@qA~@iAv@gAx@kAv@qAz@qAv@oAt@mA~@aBz@oAx@mAx@uA`A{@t@oAx@gA|@s@r@iAbAeAhAeAfAoAnAeAfAqAbAiAfAoA`AoAdAeA`AeA~@aA|@gAdAqA`A_Ax@cAfAeA|@iA`AiAbAiAdAgAdAcA~@cAz@gAbAeA|@iAjAmAfAgA`AgAbAoAdAiAfAmAfAeAbAmAhA{@bAeA~@iA`AkAdAgA`AeAdAcAhAkAhAyG`EeUlSmAt@eKaCmRgE}T}E}@Os@CuAH}@PcB|@cDvBg^nVqAl@q@Z{ASyA`@qBn@mGm@kk@eE_@M_@k@y@k@{@@sAr@{@D{j@kEa@AoCi@uDgAw@k@wAGP|Ab@vBTpB@vBFxBMvBSnB_IzUsAp@iv@j@u@qA{A_CA[^cFH_E]uEe@w@e@G]DoLfA_@@QI]BKJ[HkOrAoIp@GEICICM@KDEBCFUD}CRsBLoK|@e@HIAI?s@iEy@{Fo@}Dm@iEg@gEsDyTs@qEk@sDwCZyCVyCRs@DwCPoEVeETiBe]fKu@HFHBJ?HCFCFGBGr@IbCSjGe@LFVCFIBMAOIOQIUg@o@cCIcA?a@Hk@rBoEjAuC|@eCp@yCpBsLLUz@oB|@iFx@kAhA[z@CxO|BtA@~AGxAQzFiAr@MVDTK^i@GoBD}AHoBJmBJkBToBZgB^sAl@qA~@aAWqAxMec@j@YlAcAz@qAS_B_@cApIoh@ZaBD{@h@oDJo@j@kL|@mRHOpAB~{@tFhAj@zAG`BNlBN`BZvAj@vAz@jAfAdAfA|@dAjArA|@fAfAlAhANlA}ApAqAbAoAhAqAfAkA`AaAdAmA`AgAdAkAjAoAfAkAfAoAjAoAx@{@`A{@~@cAz@_At@aA|@}@`AeA`AkAv@s@NBdAlAhAfCt@nBt@dBx@jBl@|An@dBv@hBh@rBp@tAf@rBn@bBn@vAz@rAbBy@nAgAtSmS`A{Az@{An@sAj@}Af@aBbDgKfEcNv@yA~@}@dAw@v@kAd@eB\\{Ab@eBd@aBXaBe@uAe@aBPgBXoBVcBXwAX}AX_BZ_B^_B`@{A`@_Bd@uAh@_Bh@yAh@yAd@aBr@sAz@sAh@}Aj@}Ad@wAf@}AZ}ALqAPoBJgBHcBJ_BPoBh@eBfA{@vA{@lAs@nAy@lAu@tAw@tAw@pAw@lAu@pAw@rA{@rAw@vAy@nAm@pA_AvA_AhA}@fAiAx@kAx@gAdAoAz@gA|@uAt@kAx@qAv@qAp@kAt@yAt@uAp@sAp@mAlAz@nAx@nAv@pA|@rAbAjAx@nA|@pA~@nAz@hAx@rA~@hAv@lAx@lAt@jAe@z@yA|@}Az@wAv@qAfAy@tA?fB@pB?bBAjBElBClBEpBIzACzAEzAGnBKlBAhB\\fBd@fBb@`Bb@|A^zA`@xAFf@{A`@cBd@mBb@iBr@aBr@wAz@wAt@sAx@uAz@{At@sAl@uAp@_Bt@}AlAiAzAu@`Bs@vAw@rAq@t@bAzAG~Ae@dBi@zAc@~Ae@vAa@fBi@zAe@|Ai@jAX`@hBb@bBb@`B`@hBf@dBd@bBd@zA`@lAv@x@tAa@rAc@~Ag@xAe@dBg@vAe@n@}@a@}Ac@_Bg@_Bc@eB_@yAa@yAa@aB_@yAg@iBfJoCnHaC`HfWz]gKcd@ykB",
+              "length": 483
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": true,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "WALK",
+            "startTime": 1764875825372,
+            "endTime": 1764876139372,
+            "duration": 314.0,
+            "distance": 418.8036288803958,
+            "from": {
+              "name": "Parada 17 #2",
+              "lat": -17.7865326,
+              "lon": -63.1715445,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Destination",
+              "lat": -17.79,
+              "lon": -63.17,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "x|pkBbeq`KtTsH",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          }
+        ],
+        "startTime": 1764874872372,
+        "endTime": 1764876139372,
+        "duration": 1267,
+        "walkTime": 743,
+        "walkDistance": 990.83909921343,
+        "transfers": 0,
+        "transitTime": 224,
+        "waitingTime": 300,
+        "elevationLost": 0.0,
+        "elevationGained": 0.0,
+        "tooSloped": false
+      },
+      {
+        "legs": [
+          {
+            "mode": "WALK",
+            "startTime": 1764874872372,
+            "endTime": 1764875092372,
+            "duration": 220.0,
+            "distance": 294.57239968896386,
+            "from": {
+              "name": "Origin",
+              "lat": -17.7833,
+              "lon": -63.1821,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 11 #10",
+              "lat": -17.7836106,
+              "lon": -63.1793371,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "rhpkBbgs`K|@gP",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "BUS",
+            "startTime": 1764875392372,
+            "endTime": 1764875531372,
+            "duration": 139.0,
+            "distance": 773.3877493886865,
+            "from": {
+              "name": "Parada 11 #10",
+              "lat": -17.7836106,
+              "lon": -63.1793371,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 7 #12",
+              "lat": -17.79044,
+              "lon": -63.1779539,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "11",
+            "routeId": "pattern:15:vuelta",
+            "routeShortName": "11",
+            "routeLongName": "L\u00ednea 11",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "j|ckBnkk`K}AN_BRgBh@qAv@kAz@sAx@sAx@mAl@uAx@}Av@kB~@y@xA_AtAEdBRdBP`BL~AXzAT~APdBXhBThBTdBNbB?fBIdBC`BChBC`BhAn@~AJdBB`B@|AHbB@dBBzA?bBEzAc@FiBrA\\~An@xAp@pAh@xAj@rAf@~An@vAj@pAj@vAf@pA`@FvAu@dB}@lB_@~A_@zA]rB_@jB]jBa@zAwAm@oA}@iAw@mAMUbB]jB]`Bc@`B[bB_@hBc@zAUhBYbABZlOjEhJnCdJlCnTlGpMrDxfBpg@pEC|@t@rAxAbF~Axn@vQfm@fQnEfApEZzBF~BCd@ApDKbM]|CGn@Em@{Ff@LPD^JnEn@jGMhE[vDWJGBE@E?QEYQYQQFIZKfBa@dCi@pEcAhEWhEWhEW`BMxAW`Ee@lC]fEk@lEo@dFq@@A@C@AD?B?B?BBrFq@DEDCD?F@B@DD@D?DAFADr@lIfBjRv@zIh@vG^hEPNnIs@jOsAZIJK\\CPH^AnLgAPUN[gGm]gAeGgEoWUEOc@Ja@HC@iBrC_[K}BIi@_@{Aa@}A{@}AcBsBeBs@_Fu@eAKw@EyAUJaEV}D?yA[gFMcAUa@WEMMGg@RUTkERkCHoBLiBT}AX}A^aBd@wA`@cAR[pN}d@SiCVkAjAsATSbIgg@zAiJj@{DZkG|@qR?]ag@kBInByFYJuB}FYiCE]C@Ep@gP|@qZAWKWE[Le@X]VEVBNLTVPH`AAhKl@`CHbETh^jBXSj@e@f@BZ\\h_@dBzAN~YfAHFDs@dA_b@FgBZuRJ{A|@a\\DwBD_BHeBFcBDcBBsBDcBh@u@hB?~A?`B@jBAjB@~AC`B@tDCbf@s`B",
+              "length": 267
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": true,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "WALK",
+            "startTime": 1764875531372,
+            "endTime": 1764876163372,
+            "duration": 632.0,
+            "distance": 843.5611240105483,
+            "from": {
+              "name": "Parada 7 #12",
+              "lat": -17.79044,
+              "lon": -63.1779539,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Destination",
+              "lat": -17.79,
+              "lon": -63.17,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "fuqkBdmr`KwAup@",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          }
+        ],
+        "startTime": 1764874872372,
+        "endTime": 1764876163372,
+        "duration": 1291,
+        "walkTime": 852,
+        "walkDistance": 1138.1335236995121,
+        "transfers": 0,
+        "transitTime": 139,
+        "waitingTime": 300,
+        "elevationLost": 0.0,
+        "elevationGained": 0.0,
+        "tooSloped": false
+      },
+      {
+        "legs": [
+          {
+            "mode": "WALK",
+            "startTime": 1764874872372,
+            "endTime": 1764875179372,
+            "duration": 307.0,
+            "distance": 410.3921358603571,
+            "from": {
+              "name": "Origin",
+              "lat": -17.7833,
+              "lon": -63.1821,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 14 #15",
+              "lat": -17.7855578,
+              "lon": -63.1790339,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "rhpkBbgs`KbMeR",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "BUS",
+            "startTime": 1764875479372,
+            "endTime": 1764875578372,
+            "duration": 99.0,
+            "distance": 554.7882450056362,
+            "from": {
+              "name": "Parada 14 #15",
+              "lat": -17.7855578,
+              "lon": -63.1790339,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 7 #12",
+              "lat": -17.79044,
+              "lon": -63.1779539,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "14",
+            "routeId": "pattern:11:ida",
+            "routeShortName": "14",
+            "routeLongName": "L\u00ednea 14",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "ptekBftg`KqG_Do^yR|@{Bth@vXzCbBjCkF|F`DoCfFfNtH}EbKu@~Ao@pAs@vAy@bBy@`By@`Bq@xA}@lAu@nADhAlAn@zAj@G|Ak@rA_Ap@{ASi@nAu@tA_@tA`An@OpAf@rAjAp@pAt@rA~@nAv@nAl@zAt@bBx@tAf@zA|@vAt@xAd@vAp@t@nAo@pAo@vAo@rAmAGcBGaBD{AEkAt@u@pAq@xAu@`BrAhAjAt@rAp@rA|@hBnAvAz@V`A~Af@xAp@`a@dUhB`AlPvJbT|Ln@hA~h@~ZtAj@|AuAjA_BbAyAh@sAzBSjAZnc@|Vp@L|@FLZ?Zh@r@pB|AVEZHR^?XX`@~JdJpEbE|CpDzO|RZ`@bFxGrDdBnBnBzAxB`BnCF~@J|Aw@NKX^jD\\bCNVDJHGHCHAH@HDHFDH@L?LEJIHIDI@S`@CJq@zBc@hB[fCWvBIxAGlC@x@DxDDzDPD^JnEn@jGMhE[vDWJGBE@E?QEYQYQQFIZKlFkApEcAfEWjEWlEW~AMvAW`Ee@lC]bEk@pEo@dFq@@A@C@AD?B?B?BBrFq@DEDCD?F@D@BD@D?DAFADr@nIfBhRv@xIh@xGnMaA`NiATbDJ^PH^AnLgA\\Ed@Fd@v@\\tEPLVF`B@po@R?fC@bBBfCnA@dBCnC?q@bDt@p@jBB`BDhBTxATxAPjBO|AIn@dAbB~N\\~A`AdEp@j@|ZuGHx@_@fBi@~Ai@pBg@hBi@bBwAlEm@zAq@tAs@xAo@lARnAhAeAt@{AhAaA~AXrAj@[o@w@aA",
+              "length": 237
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": true,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "WALK",
+            "startTime": 1764875578372,
+            "endTime": 1764876210372,
+            "duration": 632.0,
+            "distance": 843.5611240105483,
+            "from": {
+              "name": "Parada 7 #12",
+              "lat": -17.79044,
+              "lon": -63.1779539,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Destination",
+              "lat": -17.79,
+              "lon": -63.17,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "fuqkBdmr`KwAup@",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          }
+        ],
+        "startTime": 1764874872372,
+        "endTime": 1764876210372,
+        "duration": 1338,
+        "walkTime": 939,
+        "walkDistance": 1253.9532598709054,
+        "transfers": 0,
+        "transitTime": 99,
+        "waitingTime": 300,
+        "elevationLost": 0.0,
+        "elevationGained": 0.0,
+        "tooSloped": false
+      },
+      {
+        "legs": [
+          {
+            "mode": "WALK",
+            "startTime": 1764874872372,
+            "endTime": 1764875411372,
+            "duration": 539.0,
+            "distance": 719.6324023398031,
+            "from": {
+              "name": "Origin",
+              "lat": -17.7833,
+              "lon": -63.1821,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 2 #9",
+              "lat": -17.785813,
+              "lon": -63.1758367,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "rhpkBbgs`KtNcf@",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "BUS",
+            "startTime": 1764875711372,
+            "endTime": 1764875808372,
+            "duration": 97.0,
+            "distance": 538.8679324647711,
+            "from": {
+              "name": "Parada 2 #9",
+              "lat": -17.785813,
+              "lon": -63.1758367,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Parada 4 #14",
+              "lat": -17.7848647,
+              "lon": -63.1708457,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "20",
+            "routeId": "pattern:18:ida",
+            "routeShortName": "20",
+            "routeLongName": "L\u00ednea 20",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "ta|kBzr|`KfGyJnFuHjAkBb@YZ@RLnBR|ARnAZnBt@~A`AjA`Al@~@zBnDbBhCtB`CEPODyB}B_D}E}@_Bi@o@iBwAoAs@}Ai@yA]mC_@a@Ac@JWZ}G|IgBxBwB|C_ArBc@v@aItK[LMW@M|CgE~D_Gu@q@aB{A{FgFeA}@vA}An@}A|@mAz@mA\\k@sBcBkAkAmBkBg@b@aAlAeAfBwAmAcCqB]d@eArA}@lAiAzAcApAcAlA_AfA}@fAcArAcAtAeAxA{@lAy@nAeAvAaAhAcA|@cAjAeAnAgAvC_AeAwEkFeAoAwQqT}@gAeEgFy@_AqWu[{e@ak@gCyCcVaYeDyDel@}q@{AiBu\\m`@uBgCa@Qc@i@CGAUIMkCaDmVoY]q@GEEG[D}@FwKr@sDXi@LCFEDG@G@G?w@L{@V_@a@cB{Ak@uBUq@Ic@_@wDa@uDEMCQu@eKWuCIaAa@wEk@gGk@oE}@wDe@oEAq@sC`@iC`@QuFUwGSgFCg@Q{DtD]HcCR}@bCaFpBuF|@uDdBqJRm@b@aAj@uAJiAI_CP}@\\m@^g@NGz@FnJ|ApGv@xAB`BEjDg@zBg@n@_@V[RURgB@kBH}BLaBNaBN}ATgB`@gBl@wAb@qATYpN}d@YeC^cB~AsAbIgg@zAiJj@{DZkG|@qR?]e[kAC??Ir@kPD@~BRzBF^cH^gGtFv@FaC^cI~H`@XQh@e@h@BZ\\h@h@j\\vAbBl@hA[|XhAjA@vA@jBH|AF~AHxAN`AjAfApA~@fAnArAdAnAdAlA`ApA~@hA~@dA`AfA~@fA`AhAz@bAt@|@jAtA`AjAhAxA",
+              "length": 233
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": true,
+            "realTime": false,
+            "pathway": false
+          },
+          {
+            "mode": "WALK",
+            "startTime": 1764875808372,
+            "endTime": 1764876241372,
+            "duration": 433.0,
+            "distance": 577.9972816338196,
+            "from": {
+              "name": "Parada 4 #14",
+              "lat": -17.7848647,
+              "lon": -63.1708457,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "to": {
+              "name": "Destination",
+              "lat": -17.79,
+              "lon": -63.17,
+              "vertexType": "NORMAL",
+              "stopId": null,
+              "stopCode": null,
+              "platformCode": null
+            },
+            "route": "",
+            "routeId": null,
+            "routeShortName": "",
+            "routeLongName": "",
+            "routeColor": "0088FF",
+            "routeTextColor": "FFFFFF",
+            "agencyName": "Transporte SC",
+            "legGeometry": {
+              "points": "jrpkBx`q`Kb_@iD",
+              "length": 2
+            },
+            "intermediateStops": [],
+            "rentedBike": false,
+            "transitLeg": false,
+            "realTime": false,
+            "pathway": false
+          }
+        ],
+        "startTime": 1764874872372,
+        "endTime": 1764876241372,
+        "duration": 1369,
+        "walkTime": 972,
+        "walkDistance": 1297.6296839736228,
+        "transfers": 0,
+        "transitTime": 97,
+        "waitingTime": 300,
+        "elevationLost": 0.0,
+        "elevationGained": 0.0,
+        "tooSloped": false
+      }
+    ],
+    "date": 1764874872372,
+    "from": {
+      "name": "Origin",
+      "lat": -17.7833,
+      "lon": -63.1821,
+      "vertexType": "NORMAL",
+      "stopId": null,
+      "stopCode": null,
+      "platformCode": null
+    },
+    "to": {
+      "name": "Destination",
+      "lat": -17.79,
+      "lon": -63.17,
+      "vertexType": "NORMAL",
+      "stopId": null,
+      "stopCode": null,
+      "platformCode": null
+    }
+  },
+  "requestParameters": {}
+}

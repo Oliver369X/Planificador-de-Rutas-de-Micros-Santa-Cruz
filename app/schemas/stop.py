@@ -18,10 +18,15 @@ class StopUpdate(BaseModel):
     descripcion: Optional[str] = None
     activa: Optional[bool] = None
 
+from pydantic import BaseModel, Field
+
 class StopResponse(StopBase):
     id_parada: int
+    # Mapear nombre_parada del modelo a nombre del schema
+    nombre: str = Field(validation_alias="nombre_parada")
     activa: bool
     fecha_creacion: datetime
     
     class Config:
         from_attributes = True
+        populate_by_name = True

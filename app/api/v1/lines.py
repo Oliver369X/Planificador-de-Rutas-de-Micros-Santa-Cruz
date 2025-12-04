@@ -61,3 +61,40 @@ def delete_line(
         raise HTTPException(status_code=404, detail="Línea no encontrada")
     
     crud_line.delete(db, existing_line)
+
+@router.get("/{id_linea}/route")
+def get_line_route(id_linea: int, db: Session = Depends(get_db)):
+    """
+    Obtiene la geometría de la ruta (patterns) en formato GeoJSON.
+    """
+    from sqlalchemy import text
+    import json
+    
+    query = text("""
+        SELECT 
+            id,
+            name,
+            sentido,
+            ST_AsGeoJSON(geometry)::json as geometry
+        FROM transporte.patterns
+        WHERE id_linea = :id_linea
+    """)
+    
+    patterns = db.execute(query, {"id_linea": id_linea}).fetchall()
+    
+    if not patterns:
+        raise HTTPException(status_code=404, detail="Ruta no encontrada")
+    
+    features = []
+    for p in patterns:
+        features.append({
+            "type": "Feature",
+            "geometry": p.geometry,
+            "properties": {
+                "id": p.id,
+                "name": p.name,
+                "sentido": p.sentido
+            }
+        })
+        
+    return {"type": "FeatureCollection", "features": features}

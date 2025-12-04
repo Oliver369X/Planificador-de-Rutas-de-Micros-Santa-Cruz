@@ -23,3 +23,5 @@ class User(Base):
     # Relaciones
     viajes = relationship("Trip", back_populates="usuario")
     pagos = relationship("Payment", back_populates="usuario")
+    favoritos = relationship("Favorite", back_populates="usuario")
+    reportes = relationship("Report", back_populates="usuario")

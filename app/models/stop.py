@@ -8,10 +8,10 @@ class Stop(Base):
     __table_args__ = {'schema': 'transporte'}
     
     id_parada = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(100), nullable=False)
+    nombre_parada = Column(String(100), nullable=False, index=True)  # Renombrado para consistencia
     latitud = Column(Numeric(10, 7), nullable=False)
     longitud = Column(Numeric(10, 7), nullable=False)
-    geom = Column(Geometry('POINT', srid=4326), nullable=True)  # PostGIS
+    geom = Column(Geometry('POINT', srid=4326), nullable=True)  # PostGIS Point
     descripcion = Column(String(255), nullable=True)
     activa = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, server_default=func.now())

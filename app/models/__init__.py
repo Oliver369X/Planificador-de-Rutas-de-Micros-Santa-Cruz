@@ -5,3 +5,8 @@ from .route import Route
 from .trip import Trip
 from .transfer import Transfer
 from .payment import Payment
+from .pattern import Pattern
+from .pattern_stop import PatternStop
+from .poi import PointOfInterest
+from .favorite import Favorite
+from .report import Report
