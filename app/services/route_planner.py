@@ -90,34 +90,35 @@ class RoutePlanner:
         # Calcular distancia directa para ajustar el radio de búsqueda
         direct_distance = haversine_distance(from_lat, from_lon, to_lat, to_lon)
         
-        # Radio de búsqueda "Todo Terreno" para Santa Cruz
-        # Eliminada lógica adaptativa que fallaba en distancias medias.
-        # Ahora BUSCA SIEMPRE en un radio amplio, porque en SCZ se camina harto para pillar micro.
-        geometry_radius = 1500  # 1.5km a la redonda para encontrar trazado
-        stop_radius = 2500      # 2.5km a la redonda para encontrar paradas
+        # Radio de búsqueda adaptativo para Santa Cruz
+        # En SCZ los micros paran en cualquier cuadra, optimizamos por geometría
+        if direct_distance < 2000:
+            geometry_radius = 800
+            stop_radius = 1200
+        elif direct_distance < 5000:
+            geometry_radius = 1500
+            stop_radius = 2000
+        else:
+            geometry_radius = 2500
+            stop_radius = 3000
         
-        # Solo reducir un poco si el viaje es EXTREMADAMENTE corto (<1km) para optimizar
-        if direct_distance < 1000:
-            geometry_radius = 600
-            stop_radius = 1000
-        
-        # ===== MÉTODO 1: Buscar rutas por GEOMETRÍA (trazado de la ruta) =====
-        # En Santa Cruz los micros paran en cualquier esquina
-        print(f"[RoutePlanner] Searching by geometry (radius={geometry_radius}m)...")
+        # ===== MÉTODO 1: Buscar rutas por GEOMETRÍA (PRIORITARIO) =====
+        # En Santa Cruz los micros paran en cualquier cuadra
+        print(f"[RoutePlanner] 🔍 Modo Santa Cruz: búsqueda por geometría (radius={geometry_radius}m)")
         geometry_routes = self._find_routes_by_geometry(
             db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
         )
         
-        for route in geometry_routes[:15]:
+        for route in geometry_routes[:50]:
             itinerary = self._build_geometry_itinerary(
                 db, route, from_lat, from_lon, to_lat, to_lon, current_time
             )
             if itinerary:
                 itineraries.append(itinerary)
         
-        print(f"[RoutePlanner] Itineraries from geometry: {len(itineraries)}")
+        print(f"[RoutePlanner] ✅ Rutas por geometría: {len(itineraries)}")
         
-        # ===== MÉTODO 2: Buscar por paradas (método tradicional) =====
+        # ===== MÉTODO 2: Buscar por paradas (secundario) =====
         if len(itineraries) < num_itineraries:
             origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=50)
             dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=50)
@@ -149,32 +150,40 @@ class RoutePlanner:
                 if itinerary:
                     itineraries.append(itinerary)
         
-        # 3. Ordenar por "Costo Generalizado" en lugar de solo duración
-        # Penaliza caminar (x2.5) y las esperas (x1.5) más que ir sentado en el bus (x1.0)
-        # Penaliza transferencias con un costo fijo (e.g., 5 minutos extra percibidos)
+        # 3. Ordenar por "Costo Generalizado" mejorado para Santa Cruz
         def calculate_generalized_cost(itinerary):
-            walk_penalty = 2.0  # Bajado de 2.5 para dar chance a rutas directas un poco lejanas
-            wait_penalty = 1.5
-            transfer_penalty = 300  # 5 minutos de 'dolor' por transbordo
+            walk_penalty = 2.5
+            wait_penalty = 1.2
+            transfer_penalty = 420  # 7 min de dolor por transbordo
+            transit_weight = 1.0
             
-            # Penalización extra si la caminata es muy larga (> 1km)
+            # Penalización progresiva por caminata
             excess_walk_penalty = 0
-            if itinerary.walkDistance > 1000:
-                excess_walk_penalty = (itinerary.walkDistance - 1000) * 0.5
+            if itinerary.walkDistance > 800:
+                excess_walk_penalty = (itinerary.walkDistance - 800) * 1.0
+            if itinerary.walkDistance > 1500:
+                excess_walk_penalty += (itinerary.walkDistance - 1500) * 2.0
+            
+            # Bonificación para rutas directas
+            direct_bonus = -300 if itinerary.transfers == 0 else 0
+            
+            # Penalizar rutas ineficientes
+            total_distance = sum(leg.distance for leg in itinerary.legs if leg.mode == "BUS")
+            route_efficiency = 1.5 if total_distance > direct_distance * 1.8 else 1.0
 
-            cost = (itinerary.transitTime * 1.0) + \
+            cost = (itinerary.transitTime * transit_weight * route_efficiency) + \
                    (itinerary.walkTime * walk_penalty) + \
                    (itinerary.waitingTime * wait_penalty) + \
                    (itinerary.transfers * transfer_penalty) + \
-                   excess_walk_penalty
+                   excess_walk_penalty + direct_bonus
                    
             return cost
 
         itineraries.sort(key=calculate_generalized_cost)
         
-        # Filtrar itinerarios que requieran caminar mucho (> 1.2km) si hay alternativas
-        if len(itineraries) > 1:
-             itineraries = [it for it in itineraries if it.walkDistance < 1200 or it == itineraries[0]]
+        # Filtrar caminatas excesivas
+        if len(itineraries) > 2:
+            itineraries = [it for it in itineraries if it.walkDistance < 1500 or itineraries.index(it) < 2]
 
         itineraries = itineraries[:num_itineraries]
         

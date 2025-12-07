@@ -1,11 +1,16 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, lines, stops, trips, routes, transfers, payments, otp_routes, geocoding_routes, pois_routes, favorites, reports, users
+from app.api.v1 import (
+    auth, lines, stops, trips, routes, transfers, payments, 
+    otp_routes, geocoding_routes, pois_routes, favorites, reports, users, patterns, admin
+)
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router)
 api_router.include_router(lines.router)
 api_router.include_router(stops.router)
+api_router.include_router(patterns.router)
+api_router.include_router(admin.router)
 api_router.include_router(trips.router)
 api_router.include_router(routes.router)
 api_router.include_router(transfers.router)
