@@ -146,21 +146,34 @@ class RoutePlanner:
                 if itinerary:
                     itineraries.append(itinerary)
         
-        # ===== MÉTODO 3: Rutas con transbordo (PRIORIDAD SI HAY MUCHA CAMINATA) =====
-        # CAMBIO: Buscar transbordos SIEMPRE, no solo si faltan opciones
-        print("[RoutePlanner] 🔄 Buscando rutas con transbordo...")
-        origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=100)
-        dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=100)
-        transfer_routes = self._find_transfer_routes(db, origin_stops, dest_stops)
-        print(f"[RoutePlanner] 🔄 Rutas con transbordo encontradas: {len(transfer_routes)}")
+        # ===== MÉTODO 3: Rutas con transbordo usando GEOMETRÍA (SOLUCIÓN DEFINITIVA) =====
+        # NUEVO: Buscar transbordos usando geometría de rutas, no solo paradas oficiales
+        print("[RoutePlanner] 🔄 Buscando transbordos optimizados por geometría...")
+        transfer_routes_geom = self._find_transfer_routes_by_geometry(
+            db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
+        )
+        print(f"[RoutePlanner] 🔄 Transbordos por geometría: {len(transfer_routes_geom)}")
         
-        # Procesar MÁS rutas con transbordo (aumentado de 10 a 30)
-        for route in transfer_routes[:30]:
-            itinerary = self._build_transfer_itinerary(
+        for route in transfer_routes_geom[:50]:
+            itinerary = self._build_transfer_itinerary_by_geometry(
                 db, route, from_lat, from_lon, to_lat, to_lon, current_time
             )
             if itinerary:
                 itineraries.append(itinerary)
+        
+        # También buscar por paradas tradicionales (pero con validación estricta)
+        if len(itineraries) < num_itineraries:
+            origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=100)
+            dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=100)
+            transfer_routes = self._find_transfer_routes(db, origin_stops, dest_stops)
+            print(f"[RoutePlanner] 🔄 Transbordos por paradas: {len(transfer_routes)}")
+            
+            for route in transfer_routes[:30]:
+                itinerary = self._build_transfer_itinerary(
+                    db, route, from_lat, from_lon, to_lat, to_lon, current_time
+                )
+                if itinerary and itinerary.walkDistance < 1000:  # Solo si caminata < 1km
+                    itineraries.append(itinerary)
         
         # 3. Ordenar por "Costo Generalizado" - PRIORIDAD: MINIMIZAR CAMINATA
         def calculate_generalized_cost(itinerary):
@@ -376,6 +389,283 @@ class RoutePlanner:
             print(f"[RoutePlanner] Error in _find_direct_routes: {e}")
             return []
 
+    def _find_transfer_routes_by_geometry(self, db: Session, from_lat: float, from_lon: float,
+                                          to_lat: float, to_lon: float, radius: int = 1500):
+        """
+        SOLUCIÓN DEFINITIVA: Busca transbordos usando GEOMETRÍA de rutas.
+        Encuentra líneas que pasen cerca del origen Y líneas que pasen cerca del destino,
+        luego busca puntos de intersección cercanos entre ambas geometrías.
+        """
+        query = text("""
+            WITH routes_near_origin AS (
+                SELECT DISTINCT 
+                    p.id as pattern1_id,
+                    p.id_linea as linea1_id,
+                    l1.nombre as linea1,
+                    l1.short_name as short_name1,
+                    l1.long_name as long_name1,
+                    l1.color as color1,
+                    l1.text_color as text_color1,
+                    ST_Distance(
+                        p.geometry::geography,
+                        ST_SetSRID(ST_MakePoint(:from_lon, :from_lat), 4326)::geography
+                    ) as dist_from_origin
+                FROM transporte.patterns p
+                JOIN transporte.lineas l1 ON p.id_linea = l1.id_linea
+                WHERE p.geometry IS NOT NULL
+                AND l1.activa = true
+                AND ST_DWithin(
+                    p.geometry::geography,
+                    ST_SetSRID(ST_MakePoint(:from_lon, :from_lat), 4326)::geography,
+                    :radius
+                )
+            ),
+            routes_near_dest AS (
+                SELECT DISTINCT 
+                    p.id as pattern2_id,
+                    p.id_linea as linea2_id,
+                    l2.nombre as linea2,
+                    l2.short_name as short_name2,
+                    l2.long_name as long_name2,
+                    l2.color as color2,
+                    l2.text_color as text_color2,
+                    ST_Distance(
+                        p.geometry::geography,
+                        ST_SetSRID(ST_MakePoint(:to_lon, :to_lat), 4326)::geography
+                    ) as dist_from_dest
+                FROM transporte.patterns p
+                JOIN transporte.lineas l2 ON p.id_linea = l2.id_linea
+                WHERE p.geometry IS NOT NULL
+                AND l2.activa = true
+                AND ST_DWithin(
+                    p.geometry::geography,
+                    ST_SetSRID(ST_MakePoint(:to_lon, :to_lat), 4326)::geography,
+                    :radius
+                )
+            ),
+            intersecting_routes AS (
+                -- Encontrar rutas que se cruzan (puntos cercanos entre geometrías)
+                SELECT DISTINCT
+                    ro.pattern1_id,
+                    ro.linea1,
+                    ro.short_name1,
+                    ro.long_name1,
+                    ro.color1,
+                    ro.text_color1,
+                    ro.dist_from_origin,
+                    rd.pattern2_id,
+                    rd.linea2,
+                    rd.short_name2,
+                    rd.long_name2,
+                    rd.color2,
+                    rd.text_color2,
+                    rd.dist_from_dest,
+                    ST_Distance(
+                        p1.geometry::geography,
+                        p2.geometry::geography
+                    ) as routes_distance,
+                    ST_ClosestPoint(p1.geometry, p2.geometry) as transfer_point
+                FROM routes_near_origin ro
+                JOIN routes_near_dest rd ON ro.linea1_id != rd.linea2_id
+                JOIN transporte.patterns p1 ON ro.pattern1_id = p1.id
+                JOIN transporte.patterns p2 ON rd.pattern2_id = p2.id
+                WHERE ST_DWithin(
+                    p1.geometry::geography,
+                    p2.geometry::geography,
+                    500  -- Rutas deben estar a menos de 500m entre sí
+                )
+            )
+            SELECT 
+                ir.*,
+                ST_Y(ir.transfer_point) as transfer_lat,
+                ST_X(ir.transfer_point) as transfer_lon,
+                (ir.dist_from_origin + ir.dist_from_dest + ir.routes_distance) as total_walk_estimate
+            FROM intersecting_routes ir
+            ORDER BY total_walk_estimate ASC
+            LIMIT 100
+        """)
+        
+        try:
+            results = db.execute(query, {
+                "from_lat": from_lat, "from_lon": from_lon,
+                "to_lat": to_lat, "to_lon": to_lon,
+                "radius": radius
+            }).fetchall()
+            return results
+        except Exception as e:
+            print(f"[RoutePlanner] Error en _find_transfer_routes_by_geometry: {e}")
+            return []
+
+    def _build_transfer_itinerary_by_geometry(self, db: Session, route, from_lat, from_lon, to_lat, to_lon, start_time):
+        """
+        Construye itinerario con transbordo usando GEOMETRÍA (punto de intersección).
+        SOLUCIÓN DEFINITIVA: No depende de paradas oficiales.
+        """
+        try:
+            transfer_lat = float(route.transfer_lat)
+            transfer_lon = float(route.transfer_lon)
+            
+            # Obtener geometrías de ambas líneas
+            bus1_coords = self._get_pattern_geometry(db, route.pattern1_id)
+            bus2_coords = self._get_pattern_geometry(db, route.pattern2_id)
+            
+            if not bus1_coords or not bus2_coords or len(bus1_coords) < 2 or len(bus2_coords) < 2:
+                return None
+            
+            # Encontrar puntos más cercanos en cada línea
+            origin_point, origin_idx = self._find_closest_point_on_line(bus1_coords, from_lat, from_lon)
+            transfer_point1, transfer_idx1 = self._find_closest_point_on_line(bus1_coords, transfer_lat, transfer_lon)
+            transfer_point2, transfer_idx2 = self._find_closest_point_on_line(bus2_coords, transfer_lat, transfer_lon)
+            dest_point, dest_idx = self._find_closest_point_on_line(bus2_coords, to_lat, to_lon)
+            
+            # Validar que el orden es correcto
+            if origin_idx >= transfer_idx1 or transfer_idx2 >= dest_idx:
+                return None
+            
+            # Validar caminata total
+            walk_to_first = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
+            walk_transfer = haversine_distance(transfer_point1[0], transfer_point1[1], transfer_point2[0], transfer_point2[1])
+            walk_from_last = haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+            total_walk = walk_to_first + walk_transfer + walk_from_last
+            
+            if total_walk > 1000:  # Máximo 1km caminata total
+                return None
+            
+            legs = []
+            current_time = start_time
+            total_walk_time = 0
+            total_walk_dist = 0
+            total_transit_time = 0
+            total_wait_time = 0
+            
+            # Leg 1: Caminar a primera línea
+            walk_time1 = self._calculate_walk_time(walk_to_first)
+            legs.append(LegSchema(
+                mode="WALK",
+                startTime=current_time,
+                endTime=current_time + (walk_time1 * 1000),
+                duration=float(walk_time1),
+                distance=walk_to_first,
+                from_=PlaceSchema(lat=from_lat, lon=from_lon, name="Origin"),
+                to=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding"),
+                legGeometry=LegGeometry(points=encode_polyline([(from_lat, from_lon), origin_point]), length=2)
+            ))
+            current_time += walk_time1 * 1000
+            total_walk_time += walk_time1
+            total_walk_dist += walk_to_first
+            
+            # Espera bus 1
+            wait_time1 = WAIT_TIME_MINUTES * 60
+            current_time += wait_time1 * 1000
+            total_wait_time += wait_time1
+            
+            # Leg 2: Primer bus hasta transbordo
+            route_segment1 = bus1_coords[origin_idx:transfer_idx1+1]
+            bus1_dist = sum(haversine_distance(route_segment1[i][0], route_segment1[i][1],
+                                               route_segment1[i+1][0], route_segment1[i+1][1])
+                           for i in range(len(route_segment1)-1))
+            bus1_time = self._calculate_bus_time(bus1_dist)
+            
+            legs.append(LegSchema(
+                mode="BUS",
+                startTime=current_time,
+                endTime=current_time + (bus1_time * 1000),
+                duration=float(bus1_time),
+                distance=bus1_dist,
+                from_=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding"),
+                to=PlaceSchema(lat=transfer_point1[0], lon=transfer_point1[1], name="Transfer point"),
+                route=route.linea1,
+                routeId=route.pattern1_id,
+                routeShortName=route.short_name1 or route.linea1,
+                routeLongName=route.long_name1 or f"Línea {route.linea1}",
+                routeColor=route.color1 or "0088FF",
+                routeTextColor=route.text_color1 or "FFFFFF",
+                legGeometry=LegGeometry(points=encode_polyline(route_segment1), length=len(route_segment1)),
+                transitLeg=True
+            ))
+            current_time += bus1_time * 1000
+            total_transit_time += bus1_time
+            
+            # Leg 3: Caminar entre transbordos
+            walk_time_transfer = self._calculate_walk_time(walk_transfer)
+            legs.append(LegSchema(
+                mode="WALK",
+                startTime=current_time,
+                endTime=current_time + (walk_time_transfer * 1000),
+                duration=float(walk_time_transfer),
+                distance=walk_transfer,
+                from_=PlaceSchema(lat=transfer_point1[0], lon=transfer_point1[1], name="Transfer point"),
+                to=PlaceSchema(lat=transfer_point2[0], lon=transfer_point2[1], name="Transfer point"),
+                legGeometry=LegGeometry(points=encode_polyline([transfer_point1, transfer_point2]), length=2)
+            ))
+            current_time += walk_time_transfer * 1000
+            total_walk_time += walk_time_transfer
+            total_walk_dist += walk_transfer
+            
+            # Espera bus 2
+            wait_time2 = WAIT_TIME_MINUTES * 60
+            current_time += wait_time2 * 1000
+            total_wait_time += wait_time2
+            
+            # Leg 4: Segundo bus hasta destino
+            route_segment2 = bus2_coords[transfer_idx2:dest_idx+1]
+            bus2_dist = sum(haversine_distance(route_segment2[i][0], route_segment2[i][1],
+                                               route_segment2[i+1][0], route_segment2[i+1][1])
+                           for i in range(len(route_segment2)-1))
+            bus2_time = self._calculate_bus_time(bus2_dist)
+            
+            legs.append(LegSchema(
+                mode="BUS",
+                startTime=current_time,
+                endTime=current_time + (bus2_time * 1000),
+                duration=float(bus2_time),
+                distance=bus2_dist,
+                from_=PlaceSchema(lat=transfer_point2[0], lon=transfer_point2[1], name="Transfer point"),
+                to=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
+                route=route.linea2,
+                routeId=route.pattern2_id,
+                routeShortName=route.short_name2 or route.linea2,
+                routeLongName=route.long_name2 or f"Línea {route.linea2}",
+                routeColor=route.color2 or "FF5722",
+                routeTextColor=route.text_color2 or "FFFFFF",
+                legGeometry=LegGeometry(points=encode_polyline(route_segment2), length=len(route_segment2)),
+                transitLeg=True
+            ))
+            current_time += bus2_time * 1000
+            total_transit_time += bus2_time
+            
+            # Leg 5: Caminar al destino final
+            walk_time2 = self._calculate_walk_time(walk_from_last)
+            legs.append(LegSchema(
+                mode="WALK",
+                startTime=current_time,
+                endTime=current_time + (walk_time2 * 1000),
+                duration=float(walk_time2),
+                distance=walk_from_last,
+                from_=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
+                to=PlaceSchema(lat=to_lat, lon=to_lon, name="Destination"),
+                legGeometry=LegGeometry(points=encode_polyline([dest_point, (to_lat, to_lon)]), length=2)
+            ))
+            current_time += walk_time2 * 1000
+            total_walk_time += walk_time2
+            total_walk_dist += walk_from_last
+            
+            total_duration = (current_time - start_time) // 1000
+            
+            return ItinerarySchema(
+                legs=legs,
+                startTime=start_time,
+                endTime=current_time,
+                duration=total_duration,
+                walkTime=total_walk_time,
+                walkDistance=total_walk_dist,
+                transfers=1,
+                transitTime=total_transit_time,
+                waitingTime=total_wait_time
+            )
+        except Exception as e:
+            print(f"[RoutePlanner] Error en _build_transfer_itinerary_by_geometry: {e}")
+            return None
 
     def _find_transfer_routes(self, db: Session, origin_stops, dest_stops):
         """
