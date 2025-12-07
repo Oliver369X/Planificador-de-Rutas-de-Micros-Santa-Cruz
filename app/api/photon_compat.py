@@ -19,31 +19,54 @@ def photon_search(
     """
     Búsqueda de lugares compatible con Photon API.
     trufi-core llama a $photonUrl/api?q=...
+    Busca en POIs y Paradas por nombre.
     """
-    search_term = f"%{q}%"
+    # Normalizar búsqueda (quitar acentos y mayúsculas)
+    search_words = q.lower().split()
+    search_pattern = f"%{q}%"
     
-    # Buscar en POIs
+    # Buscar en POIs - ordenar por relevancia (exacto primero, luego parcial)
     pois_query = text("""
-        SELECT objectid as id, nombre, tipo, latitud, longitud, direccion
+        SELECT objectid as id, nombre, tipo, latitud, longitud, direccion,
+               CASE 
+                   WHEN lower(nombre) = :exact_query THEN 1
+                   WHEN lower(nombre) LIKE :start_query THEN 2
+                   ELSE 3
+               END as relevance
         FROM transporte.points_of_interest
         WHERE nombre ILIKE :query
+        ORDER BY relevance, nombre
         LIMIT :limit
     """)
     
     # Buscar en Paradas
     stops_query = text("""
         SELECT id_parada as id, nombre_parada as nombre, 'parada' as tipo,
-               latitud, longitud, '' as direccion
+               latitud, longitud, '' as direccion,
+               CASE 
+                   WHEN lower(nombre_parada) = :exact_query THEN 1
+                   WHEN lower(nombre_parada) LIKE :start_query THEN 2
+                   ELSE 3
+               END as relevance
         FROM transporte.paradas
         WHERE nombre_parada ILIKE :query
+        ORDER BY relevance, nombre_parada
         LIMIT :limit
     """)
     
-    pois = db.execute(pois_query, {"query": search_term, "limit": limit}).fetchall()
-    stops = db.execute(stops_query, {"query": search_term, "limit": limit}).fetchall()
+    params = {
+        "query": search_pattern, 
+        "exact_query": q.lower(),
+        "start_query": f"{q.lower()}%",
+        "limit": limit
+    }
+    
+    pois = db.execute(pois_query, params).fetchall()
+    stops = db.execute(stops_query, params).fetchall()
     
     features = []
     
+    # Primero POIs (lugares importantes)
     for p in pois:
         features.append({
             "type": "Feature",
@@ -62,7 +85,8 @@ def photon_search(
                 "osm_value": p.tipo
             }
         })
-        
+    
+    # Luego Paradas
     for s in stops:
         features.append({
             "type": "Feature",
@@ -82,7 +106,7 @@ def photon_search(
             }
         })
         
-    return {"type": "FeatureCollection", "features": features}
+    return {"type": "FeatureCollection", "features": features[:limit]}
 
 @router.get("/reverse")
 def photon_reverse(

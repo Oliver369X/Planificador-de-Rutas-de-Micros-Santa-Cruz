@@ -3,34 +3,45 @@ from sqlalchemy import text
 
 db = SessionLocal()
 
-# Ver si hay línea 14 y qué nombre tiene
-print("=== Buscando línea 14 ===")
-r = db.execute(text("SELECT id_linea, nombre FROM transporte.lineas WHERE id_linea = 14"))
-for row in r.fetchall():
-    print(f"id_linea={row[0]}, nombre={row[1]}")
+# Coordenadas aproximadas del usuario (del laboratorio en la imagen)
+user_lat = -17.777
+user_lon = -63.182
 
-# Ver líneas que tienen "14" en el nombre
-print("\n=== Líneas con '14' en el nombre ===")
-r = db.execute(text("SELECT id_linea, nombre FROM transporte.lineas WHERE nombre LIKE '%14%' LIMIT 10"))
-for row in r.fetchall():
-    print(f"id_linea={row[0]}, nombre={row[1]}")
+# Buscar paradas cercanas
+print(f"=== Paradas cercanas a ({user_lat}, {user_lon}) ===")
+stops = db.execute(text("""
+    SELECT id_parada, nombre_parada, latitud, longitud,
+           ST_Distance(
+               geom::geography, 
+               ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
+           ) as distance
+    FROM transporte.paradas
+    WHERE ST_DWithin(
+        geom::geography,
+        ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
+        2000
+    )
+    ORDER BY distance ASC
+    LIMIT 20
+"""), {"lat": user_lat, "lon": user_lon}).fetchall()
 
-# Ver patterns de la línea 14
-print("\n=== Patterns de la línea 14 ===")
-r = db.execute(text("SELECT id, name, id_linea FROM transporte.patterns WHERE id_linea = 14"))
-for row in r.fetchall():
-    print(f"id={row[0]}, name={row[1]}, id_linea={row[2]}")
+print(f"Paradas encontradas: {len(stops)}")
+for s in stops:
+    print(f"  {s.nombre_parada}: {s.distance:.0f}m")
 
-# Ver cuántas paradas tiene el pattern de línea 14
-print("\n=== Paradas del pattern de línea 14 ===")
-r = db.execute(text("""
-    SELECT ps.pattern_id, COUNT(*) as stops 
-    FROM transporte.pattern_stops ps 
-    JOIN transporte.patterns p ON ps.pattern_id = p.id 
-    WHERE p.id_linea = 14 
-    GROUP BY ps.pattern_id
-"""))
-for row in r.fetchall():
-    print(f"pattern_id={row[0]}, stops={row[1]}")
-
-db.close()
+# Ahora ver qué líneas pasan por esas paradas
+print("\n=== Líneas que pasan por las paradas cercanas ===")
+stop_ids = [s.id_parada for s in stops]
+if stop_ids:
+    lines = db.execute(text("""
+        SELECT DISTINCT l.short_name, l.nombre
+        FROM transporte.pattern_stops ps
+        JOIN transporte.patterns p ON ps.pattern_id = p.id
+        JOIN transporte.lineas l ON p.id_linea = l.id_linea
+        WHERE ps.id_parada = ANY(:stop_ids)
+        ORDER BY l.short_name
+    """), {"stop_ids": stop_ids}).fetchall()
+    
+    print(f"Líneas: {len(lines)}")
+    for l in lines:
+        print(f"  Línea {l.short_name}: {l.nombre}")

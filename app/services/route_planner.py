@@ -87,26 +87,58 @@ class RoutePlanner:
         current_time = int(time.time() * 1000)
         itineraries = []
         
-        # Ampliar radio de búsqueda para encontrar más opciones
-        origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=1500, limit=30)
-        dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=1500, limit=30)
+        # Calcular distancia directa para ajustar el radio de búsqueda
+        direct_distance = haversine_distance(from_lat, from_lon, to_lat, to_lon)
         
-        print(f"[RoutePlanner] Origin stops: {len(origin_stops)}, Dest stops: {len(dest_stops)}")
+        # Radio de búsqueda basado en distancia del viaje
+        if direct_distance > 5000:  # > 5km
+            geometry_radius = 400  # metros del trazado
+            stop_radius = 2000
+        elif direct_distance > 2000:  # > 2km
+            geometry_radius = 350
+            stop_radius = 1800
+        else:
+            geometry_radius = 300
+            stop_radius = 1500
         
-        # 1. Buscar rutas directas
-        direct_routes = self._find_direct_routes(db, origin_stops, dest_stops)
-        print(f"[RoutePlanner] Direct routes found: {len(direct_routes)}")
+        # ===== MÉTODO 1: Buscar rutas por GEOMETRÍA (trazado de la ruta) =====
+        # En Santa Cruz los micros paran en cualquier esquina
+        print(f"[RoutePlanner] Searching by geometry (radius={geometry_radius}m)...")
+        geometry_routes = self._find_routes_by_geometry(
+            db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
+        )
         
-        for route in direct_routes[:10]:
-            itinerary = self._build_direct_itinerary(
+        for route in geometry_routes[:15]:
+            itinerary = self._build_geometry_itinerary(
                 db, route, from_lat, from_lon, to_lat, to_lon, current_time
             )
             if itinerary:
                 itineraries.append(itinerary)
         
-        # 2. Si no hay suficientes rutas directas, buscar con transbordos
+        print(f"[RoutePlanner] Itineraries from geometry: {len(itineraries)}")
+        
+        # ===== MÉTODO 2: Buscar por paradas (método tradicional) =====
+        if len(itineraries) < num_itineraries:
+            origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=50)
+            dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=50)
+            
+            print(f"[RoutePlanner] Origin stops: {len(origin_stops)}, Dest stops: {len(dest_stops)}")
+            
+            direct_routes = self._find_direct_routes(db, origin_stops, dest_stops)
+            print(f"[RoutePlanner] Direct routes found: {len(direct_routes)}")
+            
+            for route in direct_routes[:10]:
+                itinerary = self._build_direct_itinerary(
+                    db, route, from_lat, from_lon, to_lat, to_lon, current_time
+                )
+                if itinerary:
+                    itineraries.append(itinerary)
+        
+        # ===== MÉTODO 3: Rutas con transbordo =====
         if len(itineraries) < num_itineraries:
             print("[RoutePlanner] Searching for transfer routes...")
+            origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=50)
+            dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=50)
             transfer_routes = self._find_transfer_routes(db, origin_stops, dest_stops)
             print(f"[RoutePlanner] Transfer routes found: {len(transfer_routes)}")
             
@@ -157,6 +189,76 @@ class RoutePlanner:
         """)
         return db.execute(query, {"lat": lat, "lon": lon, "radius": radius, "limit": limit}).fetchall()
 
+    def _find_routes_by_geometry(self, db: Session, from_lat: float, from_lon: float, 
+                                  to_lat: float, to_lon: float, radius: int = 300):
+        """
+        Encuentra rutas cuya GEOMETRÍA pase cerca del origen y destino.
+        En Santa Cruz, los micros paran en cualquier esquina, así que buscamos
+        rutas cuyo trazado pase cerca de ambos puntos.
+        """
+        query = text("""
+            WITH routes_near_origin AS (
+                -- Rutas que pasan cerca del origen
+                SELECT DISTINCT p.id as pattern_id, 
+                       p.id_linea,
+                       ST_Distance(
+                           p.geometry::geography,
+                           ST_SetSRID(ST_MakePoint(:from_lon, :from_lat), 4326)::geography
+                       ) as dist_from_origin
+                FROM transporte.patterns p
+                WHERE p.geometry IS NOT NULL
+                AND ST_DWithin(
+                    p.geometry::geography,
+                    ST_SetSRID(ST_MakePoint(:from_lon, :from_lat), 4326)::geography,
+                    :radius
+                )
+            ),
+            routes_near_dest AS (
+                -- Rutas que pasan cerca del destino
+                SELECT DISTINCT p.id as pattern_id,
+                       ST_Distance(
+                           p.geometry::geography,
+                           ST_SetSRID(ST_MakePoint(:to_lon, :to_lat), 4326)::geography
+                       ) as dist_from_dest
+                FROM transporte.patterns p
+                WHERE p.geometry IS NOT NULL
+                AND ST_DWithin(
+                    p.geometry::geography,
+                    ST_SetSRID(ST_MakePoint(:to_lon, :to_lat), 4326)::geography,
+                    :radius
+                )
+            )
+            SELECT 
+                ro.pattern_id,
+                l.nombre as nombre_linea,
+                COALESCE(l.short_name, l.nombre) as short_name,
+                COALESCE(l.long_name, l.nombre) as long_name,
+                COALESCE(l.color, '0088FF') as color,
+                COALESCE(l.text_color, 'FFFFFF') as text_color,
+                ro.dist_from_origin,
+                rd.dist_from_dest,
+                (ro.dist_from_origin + rd.dist_from_dest) as total_dist
+            FROM routes_near_origin ro
+            JOIN routes_near_dest rd ON ro.pattern_id = rd.pattern_id
+            JOIN transporte.patterns p ON ro.pattern_id = p.id
+            JOIN transporte.lineas l ON p.id_linea = l.id_linea
+            ORDER BY total_dist ASC
+            LIMIT 30
+        """)
+        
+        try:
+            results = db.execute(query, {
+                "from_lat": from_lat, "from_lon": from_lon,
+                "to_lat": to_lat, "to_lon": to_lon,
+                "radius": radius
+            }).fetchall()
+            print(f"[RoutePlanner] Routes by geometry found: {len(results)}")
+            return results
+        except Exception as e:
+            print(f"[RoutePlanner] Error in _find_routes_by_geometry: {e}")
+            return []
+
+
     def _find_direct_routes(self, db: Session, origin_stops, dest_stops):
         """Encuentra patrones que pasen por origen y destino (sin transbordo)"""
         origin_ids = [s.id_parada for s in origin_stops]
@@ -203,7 +305,7 @@ class RoutePlanner:
                     seen.add(r.pattern_id)
                     unique_results.append(r)
             
-            return unique_results[:15]
+            return unique_results[:25]  # Aumentado para más opciones
         except Exception as e:
             print(f"[RoutePlanner] Error in _find_direct_routes: {e}")
             return []
@@ -429,6 +531,130 @@ class RoutePlanner:
             transitTime=transit_time,
             waitingTime=wait_time
         )
+
+    def _build_geometry_itinerary(self, db: Session, route, from_lat, from_lon, to_lat, to_lon, start_time):
+        """
+        Construye itinerario basado en geometría del trazado.
+        El usuario puede subir/bajar en cualquier punto de la ruta.
+        """
+        legs = []
+        current_time = start_time
+        total_walk_time = 0
+        total_walk_dist = 0
+        
+        # Obtener el trazado completo de la ruta
+        bus_coords = self._get_route_geometry(db, route.pattern_id)
+        if not bus_coords or len(bus_coords) < 2:
+            return None
+        
+        # Encontrar el punto más cercano al origen y destino en el trazado
+        origin_point, origin_idx = self._find_closest_point_on_line(bus_coords, from_lat, from_lon)
+        dest_point, dest_idx = self._find_closest_point_on_line(bus_coords, to_lat, to_lon)
+        
+        # Verificar que el origen viene antes del destino en la ruta
+        if origin_idx >= dest_idx:
+            return None
+        
+        # Leg 1: Caminar al punto de subida (cualquier punto de la ruta)
+        walk_dist1 = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
+        walk_time1 = self._calculate_walk_time(walk_dist1)
+        
+        walk_coords1 = [(from_lat, from_lon), origin_point]
+        legs.append(LegSchema(
+            mode="WALK",
+            startTime=current_time,
+            endTime=current_time + (walk_time1 * 1000),
+            duration=float(walk_time1),
+            distance=walk_dist1,
+            from_=PlaceSchema(lat=from_lat, lon=from_lon, name="Origin"),
+            to=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding point"),
+            legGeometry=LegGeometry(points=encode_polyline(walk_coords1), length=len(walk_coords1))
+        ))
+        current_time += walk_time1 * 1000
+        total_walk_time += walk_time1
+        total_walk_dist += walk_dist1
+        
+        # Tiempo de espera del micro
+        wait_time = WAIT_TIME_MINUTES * 60
+        current_time += wait_time * 1000
+        
+        # Leg 2: Viaje en micro (siguiendo el trazado real)
+        # Extraer solo la porción del trazado entre origen y destino
+        route_segment = bus_coords[origin_idx:dest_idx+1]
+        bus_distance = 0
+        for i in range(len(route_segment) - 1):
+            bus_distance += haversine_distance(
+                route_segment[i][0], route_segment[i][1],
+                route_segment[i+1][0], route_segment[i+1][1]
+            )
+        bus_time = self._calculate_bus_time(bus_distance)
+        
+        legs.append(LegSchema(
+            mode="BUS",
+            startTime=current_time,
+            endTime=current_time + (bus_time * 1000),
+            duration=float(bus_time),
+            distance=bus_distance,
+            from_=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding"),
+            to=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
+            route=route.nombre_linea,
+            routeId=route.pattern_id,
+            routeShortName=route.short_name or route.nombre_linea,
+            routeLongName=route.long_name or f"Línea {route.nombre_linea}",
+            routeColor=route.color or "0088FF",
+            routeTextColor=route.text_color or "FFFFFF",
+            legGeometry=LegGeometry(points=encode_polyline(route_segment), length=len(route_segment)),
+            transitLeg=True
+        ))
+        current_time += bus_time * 1000
+        
+        # Leg 3: Caminar al destino final
+        walk_dist2 = haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+        walk_time2 = self._calculate_walk_time(walk_dist2)
+        
+        walk_coords2 = [dest_point, (to_lat, to_lon)]
+        legs.append(LegSchema(
+            mode="WALK",
+            startTime=current_time,
+            endTime=current_time + (walk_time2 * 1000),
+            duration=float(walk_time2),
+            distance=walk_dist2,
+            from_=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
+            to=PlaceSchema(lat=to_lat, lon=to_lon, name="Destination"),
+            legGeometry=LegGeometry(points=encode_polyline(walk_coords2), length=len(walk_coords2))
+        ))
+        current_time += walk_time2 * 1000
+        total_walk_time += walk_time2
+        total_walk_dist += walk_dist2
+        
+        total_duration = (current_time - start_time) // 1000
+        
+        return ItinerarySchema(
+            legs=legs,
+            startTime=start_time,
+            endTime=current_time,
+            duration=total_duration,
+            walkTime=total_walk_time,
+            walkDistance=total_walk_dist,
+            transfers=0,
+            transitTime=bus_time,
+            waitingTime=wait_time
+        )
+
+    def _find_closest_point_on_line(self, coords, lat, lon):
+        """Encuentra el punto más cercano en una línea de coordenadas"""
+        min_dist = float('inf')
+        closest_point = coords[0]
+        closest_idx = 0
+        
+        for i, point in enumerate(coords):
+            dist = haversine_distance(lat, lon, point[0], point[1])
+            if dist < min_dist:
+                min_dist = dist
+                closest_point = point
+                closest_idx = i
+        
+        return closest_point, closest_idx
 
     def _build_transfer_itinerary(self, db: Session, route, from_lat, from_lon, to_lat, to_lon, start_time):
         """Construye itinerario con 1 transbordo (2 micros)"""

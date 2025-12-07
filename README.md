@@ -85,7 +85,49 @@ Para ejecutar los tests automatizados:
 docker-compose exec web pytest
 ```
 
+## ☁️ Deploy a Producción (Render + Neon)
+
+### 1. Base de Datos (Neon PostgreSQL)
+
+```bash
+# Conectar a Neon
+psql 'postgresql://user:pass@...neon.tech/transporte_db?sslmode=require'
+
+# Crear extensiones
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE SCHEMA IF NOT EXISTS transporte;
+```
+
+### 2. Migrar datos locales a Neon
+
+```bash
+# Exportar datos locales
+pg_dump --schema=transporte --no-owner -h localhost -U postgres transporte_db > backup.sql
+
+# Importar a Neon
+psql 'postgresql://...neon.tech/...' < backup.sql
+```
+
+### 3. Deploy en Render
+
+1. Crear cuenta en [render.com](https://render.com)
+2. Conectar repositorio Git
+3. Configurar variables de entorno:
+   - `DATABASE_URL`: URL de Neon PostgreSQL
+   - `SECRET_KEY`: Clave secreta (generada)
+4. Deploy automático al hacer push
+
+### 4. Variables de Entorno (Render Dashboard)
+
+| Variable | Valor |
+|----------|-------|
+| DATABASE_URL | postgresql://...neon.tech/... |
+| SECRET_KEY | (auto-generated) |
+| ALGORITHM | HS256 |
+| DEBUG | false |
+
 ## 👥 Autores
 
 - **Equipo SIG - UAGRM**
 - Facultad de Ciencias de la Computación
+
