@@ -109,15 +109,24 @@ class RoutePlanner:
             db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
         )
         
-        # Procesar TODAS las rutas por geometría encontradas (aumentado de 50 a 100)
+        # Procesar TODAS las rutas por geometría encontradas
+        geometry_success = 0
+        geometry_failed = 0
         for route in geometry_routes[:100]:
-            itinerary = self._build_geometry_itinerary(
-                db, route, from_lat, from_lon, to_lat, to_lon, current_time
-            )
-            if itinerary:
-                itineraries.append(itinerary)
+            try:
+                itinerary = self._build_geometry_itinerary(
+                    db, route, from_lat, from_lon, to_lat, to_lon, current_time
+                )
+                if itinerary:
+                    itineraries.append(itinerary)
+                    geometry_success += 1
+                else:
+                    geometry_failed += 1
+            except Exception as e:
+                geometry_failed += 1
+                print(f"[RoutePlanner] Error en geometría de línea {route.short_name}: {e}")
         
-        print(f"[RoutePlanner] ✅ Rutas por geometría: {len(itineraries)}")
+        print(f"[RoutePlanner] ✅ Rutas por geometría: {geometry_success} exitosas, {geometry_failed} fallidas")
         
         # ===== MÉTODO 2: Buscar por paradas (secundario) =====
         if len(itineraries) < num_itineraries:
@@ -234,27 +243,32 @@ class RoutePlanner:
                 ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography,
                 :radius
             )
+            AND activa = true
             ORDER BY distance ASC
             LIMIT :limit
         """)
-        return db.execute(query, {"lat": lat, "lon": lon, "radius": radius, "limit": limit}).fetchall()
+        result = db.execute(query, {"lat": lat, "lon": lon, "radius": radius, "limit": limit}).fetchall()
+        print(f"[RoutePlanner] Paradas encontradas a {radius}m: {len(result)}")
+        if result:
+            print(f"   Más cercana: {result[0].nombre_parada} a {result[0].distance:.0f}m")
+        return result
 
     def _find_routes_by_geometry(self, db: Session, from_lat: float, from_lon: float, 
                                   to_lat: float, to_lon: float, radius: int = 300):
         """
         Encuentra rutas cuya GEOMETRÍA pase cerca del origen y destino.
-        En Santa Cruz, los micros paran en cualquier esquina, así que buscamos
-        rutas cuyo trazado pase cerca de ambos puntos.
+        En Santa Cruz, los micros paran en cualquier esquina.
         """
         query = text("""
             WITH routes_near_origin AS (
-                -- Rutas que pasan cerca del origen
                 SELECT DISTINCT p.id as pattern_id, 
                        p.id_linea,
+                       p.sentido,
                        ST_Distance(
                            p.geometry::geography,
                            ST_SetSRID(ST_MakePoint(:from_lon, :from_lat), 4326)::geography
-                       ) as dist_from_origin
+                       ) as dist_from_origin,
+                       ST_Length(p.geometry::geography) as route_length
                 FROM transporte.patterns p
                 WHERE p.geometry IS NOT NULL
                 AND ST_DWithin(
@@ -264,7 +278,6 @@ class RoutePlanner:
                 )
             ),
             routes_near_dest AS (
-                -- Rutas que pasan cerca del destino
                 SELECT DISTINCT p.id as pattern_id,
                        ST_Distance(
                            p.geometry::geography,
@@ -287,13 +300,16 @@ class RoutePlanner:
                 COALESCE(l.text_color, 'FFFFFF') as text_color,
                 ro.dist_from_origin,
                 rd.dist_from_dest,
-                (ro.dist_from_origin + rd.dist_from_dest) as total_dist
+                ro.route_length,
+                ro.sentido,
+                (ro.dist_from_origin + rd.dist_from_dest) as total_walk_dist
             FROM routes_near_origin ro
             JOIN routes_near_dest rd ON ro.pattern_id = rd.pattern_id
             JOIN transporte.patterns p ON ro.pattern_id = p.id
             JOIN transporte.lineas l ON p.id_linea = l.id_linea
-            ORDER BY total_dist ASC
-            LIMIT 150
+            WHERE l.activa = true
+            ORDER BY total_walk_dist ASC, ro.route_length ASC
+            LIMIT 200
         """)
         
         try:
@@ -487,13 +503,20 @@ class RoutePlanner:
         if not origin_stop or not dest_stop:
             return None
 
+        # VALIDACIÓN: Rechazar si caminata total > 1.2km
+        walk_to_stop = haversine_distance(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
+        walk_from_stop = haversine_distance(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
+        
+        if walk_to_stop + walk_from_stop > 1200:
+            return None
+
         legs = []
         current_time = start_time
         total_walk_time = 0
         total_walk_dist = 0
         
         # Leg 1: Caminar a la parada
-        walk_dist1 = haversine_distance(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
+        walk_dist1 = walk_to_stop
         walk_time1 = self._calculate_walk_time(walk_dist1)
         
         walk_coords1 = [(from_lat, from_lon), (float(origin_stop.latitud), float(origin_stop.longitud))]
@@ -627,25 +650,28 @@ class RoutePlanner:
         # Leg 2: Viaje en bus
         if origin_idx >= dest_idx:
             # Lógica para Rutas Circulares (Wrap-around)
-            # Si el punto de bajada "está antes" que el de subida, podría ser que el bus da la vuelta.
-            # Verificamos si es un loop cerrado (inicio cerca del final)
             is_loop = False
             if len(bus_coords) > 10:
                 first_p = bus_coords[0]
                 last_p = bus_coords[-1]
                 dist_ends = haversine_distance(first_p[0], first_p[1], last_p[0], last_p[1])
-                if dist_ends < 500: # Si empieza y termina cerca (<500m)
+                if dist_ends < 1000:  # Aumentado de 500 a 1000m para detectar más loops
                     is_loop = True
             
             if is_loop:
-                # Construir ruta: Origin -> Final + Inicio -> Destino
                 route_segment_1 = bus_coords[origin_idx:]
                 route_segment_2 = bus_coords[:dest_idx+1]
                 route_segment = route_segment_1 + route_segment_2
             else:
-                return None
+                # CAMBIO: Si no es loop, verificar si el destino está "atrás" por poco
+                # En ese caso, invertir y usar solo la sección necesaria
+                if origin_idx - dest_idx < 10:  # Diferencia pequeña
+                    # Usar ruta corta al revés
+                    route_segment = bus_coords[dest_idx:origin_idx+1]
+                    route_segment.reverse()
+                else:
+                    return None  # Ruta no válida
         else:
-            # Ruta normal
             route_segment = bus_coords[origin_idx:dest_idx+1]
 
         bus_distance = 0
@@ -735,6 +761,15 @@ class RoutePlanner:
         if not origin_stop or not transfer_stop or not dest_stop:
             return None
 
+        # VALIDACIÓN CRÍTICA: Rechazar si la caminata inicial es excesiva
+        walk_to_first_stop = haversine_distance(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
+        walk_from_last_stop = haversine_distance(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
+        total_walk_estimate = walk_to_first_stop + walk_from_last_stop
+        
+        # Si la caminata total es > 1.5km, rechazar este transbordo
+        if total_walk_estimate > 1500:
+            return None
+
         legs = []
         current_time = start_time
         total_walk_time = 0
@@ -743,7 +778,7 @@ class RoutePlanner:
         total_wait_time = 0
         
         # Leg 1: Caminar a la primera parada
-        walk_dist1 = haversine_distance(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
+        walk_dist1 = walk_to_first_stop
         walk_time1 = self._calculate_walk_time(walk_dist1)
         
         walk_coords1 = [(from_lat, from_lon), (float(origin_stop.latitud), float(origin_stop.longitud))]
