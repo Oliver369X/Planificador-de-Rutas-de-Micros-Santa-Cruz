@@ -91,18 +91,16 @@ class RoutePlanner:
         direct_distance = haversine_distance(from_lat, from_lon, to_lat, to_lon)
         
         # Radio de búsqueda basado en distancia del viaje
-        # Radio de búsqueda basado en distancia del viaje
-        # AJUSTADO: Valores equilibrados. No tan grandes como 2km, pero no tan pequeños como 500m
-        # Si es muy pequeño, NO encuentra paradas y falla o solo da caminata.
+        # Radio de búsqueda basado en distancia del viaje (Tuning agresivo)
         if direct_distance > 5000:  # > 5km
-            geometry_radius = 400
-            stop_radius = 1200     # ~1.2km (necesario para encontrar conexiones en distancias largas)
+            geometry_radius = 1000  # 1km para encontrar rutas paralelas
+            stop_radius = 2000     # 2km a la redonda para encontrar paradas
         elif direct_distance > 2000:  # > 2km
-            geometry_radius = 350
-            stop_radius = 1000      # ~1km
+            geometry_radius = 600
+            stop_radius = 1200      # 1.2km
         else:
-            geometry_radius = 300
-            stop_radius = 800      # ~800m
+            geometry_radius = 400
+            stop_radius = 800
         
         # ===== MÉTODO 1: Buscar rutas por GEOMETRÍA (trazado de la ruta) =====
         # En Santa Cruz los micros paran en cualquier esquina
