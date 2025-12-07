@@ -76,7 +76,7 @@ class RoutePlanner:
         to_lat: float,
         to_lon: float,
         max_walk_distance: float = 1500.0,
-        num_itineraries: int = 5
+        num_itineraries: int = 10  # Aumentado de 5 a 10 para dar MÁS opciones
     ) -> PlanSchema:
         """
         Planifica ruta buscando la forma más rápida de llegar.
@@ -109,7 +109,8 @@ class RoutePlanner:
             db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
         )
         
-        for route in geometry_routes[:50]:
+        # Procesar TODAS las rutas por geometría encontradas (aumentado de 50 a 100)
+        for route in geometry_routes[:100]:
             itinerary = self._build_geometry_itinerary(
                 db, route, from_lat, from_lon, to_lat, to_lon, current_time
             )
@@ -128,48 +129,55 @@ class RoutePlanner:
             direct_routes = self._find_direct_routes(db, origin_stops, dest_stops)
             print(f"[RoutePlanner] Direct routes found: {len(direct_routes)}")
             
-            for route in direct_routes[:10]:
+            # Procesar más rutas directas (aumentado de 10 a 25)
+            for route in direct_routes[:25]:
                 itinerary = self._build_direct_itinerary(
                     db, route, from_lat, from_lon, to_lat, to_lon, current_time
                 )
                 if itinerary:
                     itineraries.append(itinerary)
         
-        # ===== MÉTODO 3: Rutas con transbordo =====
-        if len(itineraries) < num_itineraries:
-            print("[RoutePlanner] Searching for transfer routes...")
-            origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=50)
-            dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=50)
-            transfer_routes = self._find_transfer_routes(db, origin_stops, dest_stops)
-            print(f"[RoutePlanner] Transfer routes found: {len(transfer_routes)}")
-            
-            for route in transfer_routes[:10]:
-                itinerary = self._build_transfer_itinerary(
-                    db, route, from_lat, from_lon, to_lat, to_lon, current_time
-                )
-                if itinerary:
-                    itineraries.append(itinerary)
+        # ===== MÉTODO 3: Rutas con transbordo (PRIORIDAD SI HAY MUCHA CAMINATA) =====
+        # CAMBIO: Buscar transbordos SIEMPRE, no solo si faltan opciones
+        print("[RoutePlanner] 🔄 Buscando rutas con transbordo...")
+        origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=100)
+        dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=100)
+        transfer_routes = self._find_transfer_routes(db, origin_stops, dest_stops)
+        print(f"[RoutePlanner] 🔄 Rutas con transbordo encontradas: {len(transfer_routes)}")
         
-        # 3. Ordenar por "Costo Generalizado" mejorado para Santa Cruz
+        # Procesar MÁS rutas con transbordo (aumentado de 10 a 30)
+        for route in transfer_routes[:30]:
+            itinerary = self._build_transfer_itinerary(
+                db, route, from_lat, from_lon, to_lat, to_lon, current_time
+            )
+            if itinerary:
+                itineraries.append(itinerary)
+        
+        # 3. Ordenar por "Costo Generalizado" - PRIORIDAD: MINIMIZAR CAMINATA
         def calculate_generalized_cost(itinerary):
-            walk_penalty = 2.5
-            wait_penalty = 1.2
-            transfer_penalty = 420  # 7 min de dolor por transbordo
+            # CAMBIO CRÍTICO: Penalizar MUCHO MÁS la caminata
+            walk_penalty = 5.0  # Aumentado de 2.5 a 5.0
+            wait_penalty = 1.0
+            transfer_penalty = 240  # Reducido de 420 a 240 (4 min) - MEJOR hacer transbordo que caminar
             transit_weight = 1.0
             
-            # Penalización progresiva por caminata
+            # Penalización AGRESIVA por caminata excesiva
             excess_walk_penalty = 0
-            if itinerary.walkDistance > 800:
-                excess_walk_penalty = (itinerary.walkDistance - 800) * 1.0
-            if itinerary.walkDistance > 1500:
-                excess_walk_penalty += (itinerary.walkDistance - 1500) * 2.0
+            if itinerary.walkDistance > 300:  # Más estricto: desde 300m
+                excess_walk_penalty = (itinerary.walkDistance - 300) * 2.0
+            if itinerary.walkDistance > 800:  # Desde 800m penalizar MÁS
+                excess_walk_penalty += (itinerary.walkDistance - 800) * 4.0
+            if itinerary.walkDistance > 1500:  # Más de 1.5km es INACEPTABLE
+                excess_walk_penalty += (itinerary.walkDistance - 1500) * 10.0
             
-            # Bonificación para rutas directas
-            direct_bonus = -300 if itinerary.transfers == 0 else 0
+            # Bonificación para rutas directas SOLO si la caminata es razonable
+            direct_bonus = 0
+            if itinerary.transfers == 0 and itinerary.walkDistance < 500:
+                direct_bonus = -200  # Solo bonificar si camina poco
             
-            # Penalizar rutas ineficientes
+            # Penalizar rutas que dan muchas vueltas
             total_distance = sum(leg.distance for leg in itinerary.legs if leg.mode == "BUS")
-            route_efficiency = 1.5 if total_distance > direct_distance * 1.8 else 1.0
+            route_efficiency = 1.5 if total_distance > direct_distance * 2.0 else 1.0
 
             cost = (itinerary.transitTime * transit_weight * route_efficiency) + \
                    (itinerary.walkTime * walk_penalty) + \
@@ -181,9 +189,17 @@ class RoutePlanner:
 
         itineraries.sort(key=calculate_generalized_cost)
         
-        # Filtrar caminatas excesivas
-        if len(itineraries) > 2:
-            itineraries = [it for it in itineraries if it.walkDistance < 1500 or itineraries.index(it) < 2]
+        # Mostrar info de las mejores rutas para debugging
+        print(f"[RoutePlanner] 📊 Top 3 rutas antes de filtrar:")
+        for i, it in enumerate(itineraries[:3], 1):
+            transfers_text = f"{it.transfers} transbordo(s)" if it.transfers > 0 else "directo"
+            print(f"   {i}. Caminata: {it.walkDistance:.0f}m, Tiempo: {it.duration//60}min, {transfers_text}")
+        
+        # Filtrar solo rutas absurdamente malas (>2km caminata) si hay mejores opciones
+        if len(itineraries) > 3:
+            best_walk = min(it.walkDistance for it in itineraries[:5])
+            if best_walk < 1000:
+                itineraries = [it for it in itineraries if it.walkDistance < 2000 or itineraries.index(it) < 3]
 
         itineraries = itineraries[:num_itineraries]
         
@@ -277,7 +293,7 @@ class RoutePlanner:
             JOIN transporte.patterns p ON ro.pattern_id = p.id
             JOIN transporte.lineas l ON p.id_linea = l.id_linea
             ORDER BY total_dist ASC
-            LIMIT 30
+            LIMIT 150
         """)
         
         try:
@@ -322,7 +338,7 @@ class RoutePlanner:
             AND ps2.id_parada = ANY(:dest_ids)
             AND ps1.sequence < ps2.sequence
             ORDER BY (ps2.sequence - ps1.sequence) ASC
-            LIMIT 20
+            LIMIT 50
         """)
         
         try:
@@ -414,7 +430,7 @@ class RoutePlanner:
             JOIN transporte.paradas par ON tp.transfer_stop = par.id_parada
             ORDER BY pattern1_id, pattern2_id, 
                      (transfer_seq1 - origin_seq) + (dest_seq - transfer_seq2)
-            LIMIT 20
+            LIMIT 60
         """)
         
         try:
