@@ -568,7 +568,7 @@ class RoutePlanner:
         total_walk_dist = 0
         
         # Obtener el trazado completo de la ruta
-        bus_coords = self._get_route_geometry(db, route.pattern_id)
+        bus_coords = self._get_pattern_geometry(db, route.pattern_id)
         if not bus_coords or len(bus_coords) < 2:
             return None
         
