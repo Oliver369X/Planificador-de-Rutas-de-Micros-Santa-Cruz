@@ -811,12 +811,12 @@ class RoutePlanner:
             if o1 >= t1_1_idx or t1_2_idx >= t2_1_idx or t2_2_idx >= d3:
                 return None
             
-            # Calcular caminata total
+            # Calcular caminata total (siguiendo calles)
             walk_total = (
-                haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1]) +
-                haversine_distance(t1_1[0], t1_1[1], t1_2[0], t1_2[1]) +
-                haversine_distance(t2_1[0], t2_1[1], t2_2[0], t2_2[1]) +
-                haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+                walking_distance_realistic(from_lat, from_lon, origin_point[0], origin_point[1]) +
+                walking_distance_realistic(t1_1[0], t1_1[1], t1_2[0], t1_2[1]) +
+                walking_distance_realistic(t2_1[0], t2_1[1], t2_2[0], t2_2[1]) +
+                walking_distance_realistic(dest_point[0], dest_point[1], to_lat, to_lon)
             )
             
             if walk_total > 800:  # Máximo 800m para 3 micros
@@ -1137,7 +1137,7 @@ class RoutePlanner:
         current_time += bus_time * 1000
         
         # Leg 3: Caminar al destino
-        walk_dist2 = haversine_distance(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
+        walk_dist2 = walking_distance_realistic(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
         walk_time2 = self._calculate_walk_time(walk_dist2)
         
         walk_coords2 = [(float(dest_stop.latitud), float(dest_stop.longitud)), (to_lat, to_lon)]
