@@ -24,6 +24,9 @@ PyJWT==2.8.0
 # Utilidades
 python-dotenv==1.0.0
 shapely==2.0.2
+strawberry-graphql[fastapi-extension]==0.213.0
+numpy<2.0.0
+
 
 # Testing (opcional en producción)
 pytest==7.4.3
