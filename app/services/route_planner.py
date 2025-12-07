@@ -90,17 +90,16 @@ class RoutePlanner:
         # Calcular distancia directa para ajustar el radio de búsqueda
         direct_distance = haversine_distance(from_lat, from_lon, to_lat, to_lon)
         
-        # Radio de búsqueda basado en distancia del viaje
-        # Radio de búsqueda basado en distancia del viaje (Tuning agresivo)
-        if direct_distance > 5000:  # > 5km
-            geometry_radius = 1000  # 1km para encontrar rutas paralelas
-            stop_radius = 2000     # 2km a la redonda para encontrar paradas
-        elif direct_distance > 2000:  # > 2km
+        # Radio de búsqueda "Todo Terreno" para Santa Cruz
+        # Eliminada lógica adaptativa que fallaba en distancias medias.
+        # Ahora BUSCA SIEMPRE en un radio amplio, porque en SCZ se camina harto para pillar micro.
+        geometry_radius = 1500  # 1.5km a la redonda para encontrar trazado
+        stop_radius = 2500      # 2.5km a la redonda para encontrar paradas
+        
+        # Solo reducir un poco si el viaje es EXTREMADAMENTE corto (<1km) para optimizar
+        if direct_distance < 1000:
             geometry_radius = 600
-            stop_radius = 1200      # 1.2km
-        else:
-            geometry_radius = 400
-            stop_radius = 800
+            stop_radius = 1000
         
         # ===== MÉTODO 1: Buscar rutas por GEOMETRÍA (trazado de la ruta) =====
         # En Santa Cruz los micros paran en cualquier esquina
@@ -154,7 +153,7 @@ class RoutePlanner:
         # Penaliza caminar (x2.5) y las esperas (x1.5) más que ir sentado en el bus (x1.0)
         # Penaliza transferencias con un costo fijo (e.g., 5 minutos extra percibidos)
         def calculate_generalized_cost(itinerary):
-            walk_penalty = 2.5
+            walk_penalty = 2.0  # Bajado de 2.5 para dar chance a rutas directas un poco lejanas
             wait_penalty = 1.5
             transfer_penalty = 300  # 5 minutos de 'dolor' por transbordo
             
@@ -577,36 +576,29 @@ class RoutePlanner:
         origin_point, origin_idx = self._find_closest_point_on_line(bus_coords, from_lat, from_lon)
         dest_point, dest_idx = self._find_closest_point_on_line(bus_coords, to_lat, to_lon)
         
-        # Verificar que el origen viene antes del destino en la ruta
         if origin_idx >= dest_idx:
-            return None
-        
-        # Leg 1: Caminar al punto de subida (cualquier punto de la ruta)
-        walk_dist1 = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
-        walk_time1 = self._calculate_walk_time(walk_dist1)
-        
-        walk_coords1 = [(from_lat, from_lon), origin_point]
-        legs.append(LegSchema(
-            mode="WALK",
-            startTime=current_time,
-            endTime=current_time + (walk_time1 * 1000),
-            duration=float(walk_time1),
-            distance=walk_dist1,
-            from_=PlaceSchema(lat=from_lat, lon=from_lon, name="Origin"),
-            to=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding point"),
-            legGeometry=LegGeometry(points=encode_polyline(walk_coords1), length=len(walk_coords1))
-        ))
-        current_time += walk_time1 * 1000
-        total_walk_time += walk_time1
-        total_walk_dist += walk_dist1
-        
-        # Tiempo de espera del micro
-        wait_time = WAIT_TIME_MINUTES * 60
-        current_time += wait_time * 1000
-        
-        # Leg 2: Viaje en micro (siguiendo el trazado real)
-        # Extraer solo la porción del trazado entre origen y destino
-        route_segment = bus_coords[origin_idx:dest_idx+1]
+            # Lógica para Rutas Circulares (Wrap-around)
+            # Si el punto de bajada "está antes" que el de subida, podría ser que el bus da la vuelta.
+            # Verificamos si es un loop cerrado (inicio cerca del final)
+            is_loop = False
+            if len(bus_coords) > 10:
+                first_p = bus_coords[0]
+                last_p = bus_coords[-1]
+                dist_ends = haversine_distance(first_p[0], first_p[1], last_p[0], last_p[1])
+                if dist_ends < 500: # Si empieza y termina cerca (<500m)
+                    is_loop = True
+            
+            if is_loop:
+                # Construir ruta: Origin -> Final + Inicio -> Destino
+                route_segment_1 = bus_coords[origin_idx:]
+                route_segment_2 = bus_coords[:dest_idx+1]
+                route_segment = route_segment_1 + route_segment_2
+            else:
+                return None
+        else:
+            # Ruta normal
+            route_segment = bus_coords[origin_idx:dest_idx+1]
+
         bus_distance = 0
         for i in range(len(route_segment) - 1):
             bus_distance += haversine_distance(
