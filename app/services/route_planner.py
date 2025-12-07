@@ -52,7 +52,7 @@ def encode_polyline(coordinates: List[Tuple[float, float]]) -> str:
     return ''.join(encoded)
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calcula distancia en metros entre dos coordenadas"""
+    """Calcula distancia en línea recta (como el vuelo de un pájaro)"""
     R = 6371000  # Radio de la Tierra en metros
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
@@ -63,6 +63,40 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     
     return R * c
+
+def walking_distance_realistic(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """
+    Calcula distancia REALISTA caminando siguiendo calles.
+    
+    En lugar de línea recta (que atraviesa casas), aproxima que el usuario
+    sigue la red vial de Santa Cruz (calles en cuadrícula).
+    
+    Factor de corrección según distancia:
+    - <200m: factor 1.3 (solo esquinas, casi directo)
+    - 200-500m: factor 1.5 (algunas cuadras)
+    - 500-1000m: factor 1.7 (varias cuadras)
+    - >1000m: factor 2.0 (muchas cuadras, más desviaciones)
+    
+    NOTA: Para cálculo exacto necesitarías:
+    - Red vial completa en PostGIS con pgrouting
+    - O servicio de routing (OSRM, GraphHopper)
+    """
+    straight_distance = haversine_distance(lat1, lon1, lat2, lon2)
+    
+    # Factor de corrección según distancia (calles en cuadrícula)
+    if straight_distance < 200:
+        factor = 1.3  # Casi directo, solo esquinas
+    elif straight_distance < 500:
+        factor = 1.5  # Algunas cuadras
+    elif straight_distance < 1000:
+        factor = 1.7  # Varias cuadras
+    else:
+        factor = 2.0  # Muchas cuadras, más desviaciones
+    
+    # Aplicar factor para simular seguir calles
+    realistic_distance = straight_distance * factor
+    
+    return realistic_distance
 
 
 class RoutePlanner:
@@ -538,10 +572,10 @@ class RoutePlanner:
             if origin_idx >= transfer_idx1 or transfer_idx2 >= dest_idx:
                 return None
             
-            # Validar caminata total
-            walk_to_first = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
-            walk_transfer = haversine_distance(transfer_point1[0], transfer_point1[1], transfer_point2[0], transfer_point2[1])
-            walk_from_last = haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+            # Validar caminata total (siguiendo calles)
+            walk_to_first = walking_distance_realistic(from_lat, from_lon, origin_point[0], origin_point[1])
+            walk_transfer = walking_distance_realistic(transfer_point1[0], transfer_point1[1], transfer_point2[0], transfer_point2[1])
+            walk_from_last = walking_distance_realistic(dest_point[0], dest_point[1], to_lat, to_lon)
             total_walk = walk_to_first + walk_transfer + walk_from_last
             
             if total_walk > 1000:  # Máximo 1km caminata total
@@ -794,8 +828,8 @@ class RoutePlanner:
             total_transit = 0
             total_wait = 0
             
-            # Leg 1: Caminar a primera línea
-            w1 = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
+            # Leg 1: Caminar a primera línea (siguiendo calles)
+            w1 = walking_distance_realistic(from_lat, from_lon, origin_point[0], origin_point[1])
             wt1 = self._calculate_walk_time(w1)
             legs.append(LegSchema(mode="WALK", startTime=current_time,
                 endTime=current_time + wt1*1000, duration=float(wt1), distance=w1,
@@ -823,8 +857,8 @@ class RoutePlanner:
             current_time += t1*1000
             total_transit += t1
             
-            # Leg 3: Caminar entre transbordo 1
-            w2 = haversine_distance(t1_1[0], t1_1[1], t1_2[0], t1_2[1])
+            # Leg 3: Caminar entre transbordo 1 (siguiendo calles)
+            w2 = walking_distance_realistic(t1_1[0], t1_1[1], t1_2[0], t1_2[1])
             wt2 = self._calculate_walk_time(w2)
             legs.append(LegSchema(mode="WALK", startTime=current_time, endTime=current_time + wt2*1000,
                 duration=float(wt2), distance=w2, from_=PlaceSchema(lat=t1_1[0], lon=t1_1[1], name="Transfer 1"),
@@ -851,8 +885,8 @@ class RoutePlanner:
             current_time += t2*1000
             total_transit += t2
             
-            # Leg 5: Caminar entre transbordo 2
-            w3 = haversine_distance(t2_1[0], t2_1[1], t2_2[0], t2_2[1])
+            # Leg 5: Caminar entre transbordo 2 (siguiendo calles)
+            w3 = walking_distance_realistic(t2_1[0], t2_1[1], t2_2[0], t2_2[1])
             wt3 = self._calculate_walk_time(w3)
             legs.append(LegSchema(mode="WALK", startTime=current_time, endTime=current_time + wt3*1000,
                 duration=float(wt3), distance=w3, from_=PlaceSchema(lat=t2_1[0], lon=t2_1[1], name="Transfer 2"),
@@ -879,8 +913,8 @@ class RoutePlanner:
             current_time += t3*1000
             total_transit += t3
             
-            # Leg 7: Caminar al destino
-            w4 = haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+            # Leg 7: Caminar al destino (siguiendo calles)
+            w4 = walking_distance_realistic(dest_point[0], dest_point[1], to_lat, to_lon)
             wt4 = self._calculate_walk_time(w4)
             legs.append(LegSchema(mode="WALK", startTime=current_time, endTime=current_time + wt4*1000,
                 duration=float(wt4), distance=w4, from_=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
@@ -1034,9 +1068,9 @@ class RoutePlanner:
         if not origin_stop or not dest_stop:
             return None
 
-        # VALIDACIÓN: Rechazar si caminata total > 1.2km
-        walk_to_stop = haversine_distance(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
-        walk_from_stop = haversine_distance(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
+        # VALIDACIÓN: Rechazar si caminata total > 1.2km (siguiendo calles)
+        walk_to_stop = walking_distance_realistic(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
+        walk_from_stop = walking_distance_realistic(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
         
         if walk_to_stop + walk_from_stop > 1200:
             return None
@@ -1155,8 +1189,8 @@ class RoutePlanner:
         origin_point, origin_idx = self._find_closest_point_on_line(bus_coords, from_lat, from_lon)
         dest_point, dest_idx = self._find_closest_point_on_line(bus_coords, to_lat, to_lon)
         
-        # Leg 1: Caminar al punto de abordaje
-        walk_dist1 = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
+        # Leg 1: Caminar al punto de abordaje (siguiendo calles)
+        walk_dist1 = walking_distance_realistic(from_lat, from_lon, origin_point[0], origin_point[1])
         walk_time1 = self._calculate_walk_time(walk_dist1)
         
         walk_coords1 = [(from_lat, from_lon), origin_point]
@@ -1232,8 +1266,8 @@ class RoutePlanner:
         ))
         current_time += bus_time * 1000
         
-        # Leg 3: Caminar al destino final
-        walk_dist2 = haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+        # Leg 3: Caminar al destino final (siguiendo calles)
+        walk_dist2 = walking_distance_realistic(dest_point[0], dest_point[1], to_lat, to_lon)
         walk_time2 = self._calculate_walk_time(walk_dist2)
         
         walk_coords2 = [dest_point, (to_lat, to_lon)]
@@ -1292,9 +1326,9 @@ class RoutePlanner:
         if not origin_stop or not transfer_stop or not dest_stop:
             return None
 
-        # VALIDACIÓN CRÍTICA: Rechazar si la caminata inicial es excesiva
-        walk_to_first_stop = haversine_distance(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
-        walk_from_last_stop = haversine_distance(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
+        # VALIDACIÓN CRÍTICA: Rechazar si la caminata inicial es excesiva (siguiendo calles)
+        walk_to_first_stop = walking_distance_realistic(from_lat, from_lon, float(origin_stop.latitud), float(origin_stop.longitud))
+        walk_from_last_stop = walking_distance_realistic(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
         total_walk_estimate = walk_to_first_stop + walk_from_last_stop
         
         # Si la caminata total es > 1.5km, rechazar este transbordo
@@ -1410,8 +1444,8 @@ class RoutePlanner:
         current_time += bus2_time * 1000
         total_transit_time += bus2_time
         
-        # Leg 4: Caminar al destino
-        walk_dist2 = haversine_distance(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
+        # Leg 4: Caminar al destino (siguiendo calles)
+        walk_dist2 = walking_distance_realistic(float(dest_stop.latitud), float(dest_stop.longitud), to_lat, to_lon)
         walk_time2 = self._calculate_walk_time(walk_dist2)
         
         walk_coords2 = [(float(dest_stop.latitud), float(dest_stop.longitud)), (to_lat, to_lon)]
@@ -1445,7 +1479,7 @@ class RoutePlanner:
 
     def _build_walk_only_itinerary(self, from_lat, from_lon, to_lat, to_lon, start_time):
         """Construye itinerario solo a pie (fallback)"""
-        distance = haversine_distance(from_lat, from_lon, to_lat, to_lon)
+        distance = walking_distance_realistic(from_lat, from_lon, to_lat, to_lon)
         walk_time = self._calculate_walk_time(distance)
         
         walk_coords = [(from_lat, from_lon), (to_lat, to_lon)]
