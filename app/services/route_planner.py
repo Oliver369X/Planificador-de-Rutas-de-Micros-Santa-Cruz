@@ -76,7 +76,8 @@ class RoutePlanner:
         to_lat: float,
         to_lon: float,
         max_walk_distance: float = 1500.0,
-        num_itineraries: int = 10  # Aumentado de 5 a 10 para dar MÁS opciones
+        num_itineraries: int = 10,
+        max_transfers: int = 3  # NUEVO: Permitir hasta 3 transbordos (4 micros)
     ) -> PlanSchema:
         """
         Planifica ruta buscando la forma más rápida de llegar.
@@ -146,9 +147,8 @@ class RoutePlanner:
                 if itinerary:
                     itineraries.append(itinerary)
         
-        # ===== MÉTODO 3: Rutas con transbordo usando GEOMETRÍA (SOLUCIÓN DEFINITIVA) =====
-        # NUEVO: Buscar transbordos usando geometría de rutas, no solo paradas oficiales
-        print("[RoutePlanner] 🔄 Buscando transbordos optimizados por geometría...")
+        # ===== MÉTODO 3: Rutas con 1 transbordo (2 micros) =====
+        print("[RoutePlanner] 🔄 Buscando transbordos (2 micros)...")
         transfer_routes_geom = self._find_transfer_routes_by_geometry(
             db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
         )
@@ -158,21 +158,37 @@ class RoutePlanner:
             itinerary = self._build_transfer_itinerary_by_geometry(
                 db, route, from_lat, from_lon, to_lat, to_lon, current_time
             )
-            if itinerary:
+            if itinerary and itinerary.walkDistance < 1000:
                 itineraries.append(itinerary)
         
-        # También buscar por paradas tradicionales (pero con validación estricta)
-        if len(itineraries) < num_itineraries:
-            origin_stops = self._find_nearby_stops(db, from_lat, from_lon, radius=stop_radius, limit=100)
-            dest_stops = self._find_nearby_stops(db, to_lat, to_lon, radius=stop_radius, limit=100)
-            transfer_routes = self._find_transfer_routes(db, origin_stops, dest_stops)
-            print(f"[RoutePlanner] 🔄 Transbordos por paradas: {len(transfer_routes)}")
+        # ===== MÉTODO 4: Rutas con 2 transbordos (3 micros) =====
+        if max_transfers >= 2 and len(itineraries) < num_itineraries:
+            print("[RoutePlanner] 🔄🔄 Buscando rutas con 2 transbordos (3 micros)...")
+            triple_routes = self._find_triple_transfer_routes(
+                db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
+            )
+            print(f"[RoutePlanner] 🔄🔄 Rutas con 2 transbordos: {len(triple_routes)}")
             
-            for route in transfer_routes[:30]:
-                itinerary = self._build_transfer_itinerary(
+            for route in triple_routes[:30]:
+                itinerary = self._build_triple_transfer_itinerary(
                     db, route, from_lat, from_lon, to_lat, to_lon, current_time
                 )
-                if itinerary and itinerary.walkDistance < 1000:  # Solo si caminata < 1km
+                if itinerary and itinerary.walkDistance < 800:  # Más estricto para 3 micros
+                    itineraries.append(itinerary)
+        
+        # ===== MÉTODO 5: Rutas con 3 transbordos (4 micros) =====
+        if max_transfers >= 3 and len(itineraries) < num_itineraries:
+            print("[RoutePlanner] 🔄🔄🔄 Buscando rutas con 3 transbordos (4 micros)...")
+            quadruple_routes = self._find_quadruple_transfer_routes(
+                db, from_lat, from_lon, to_lat, to_lon, radius=geometry_radius
+            )
+            print(f"[RoutePlanner] 🔄🔄🔄 Rutas con 3 transbordos: {len(quadruple_routes)}")
+            
+            for route in quadruple_routes[:20]:
+                itinerary = self._build_quadruple_transfer_itinerary(
+                    db, route, from_lat, from_lon, to_lat, to_lon, current_time
+                )
+                if itinerary and itinerary.walkDistance < 600:  # Muy estricto para 4 micros
                     itineraries.append(itinerary)
         
         # 3. Ordenar por "Costo Generalizado" - PRIORIDAD: MINIMIZAR CAMINATA
@@ -666,6 +682,231 @@ class RoutePlanner:
         except Exception as e:
             print(f"[RoutePlanner] Error en _build_transfer_itinerary_by_geometry: {e}")
             return None
+
+    def _find_triple_transfer_routes(self, db: Session, from_lat: float, from_lon: float,
+                                    to_lat: float, to_lon: float, radius: int = 1500):
+        """
+        Encuentra rutas con 2 transbordos (3 micros).
+        Busca: Origen -> Línea1 -> Transbordo1 -> Línea2 -> Transbordo2 -> Línea3 -> Destino
+        """
+        query = text("""
+            WITH routes_near_origin AS (
+                SELECT DISTINCT p.id as pattern1_id, p.id_linea as linea1_id,
+                       l1.short_name as short_name1, l1.nombre as linea1,
+                       l1.color as color1, l1.text_color as text_color1
+                FROM transporte.patterns p
+                JOIN transporte.lineas l1 ON p.id_linea = l1.id_linea
+                WHERE p.geometry IS NOT NULL AND l1.activa = true
+                AND ST_DWithin(p.geometry::geography,
+                    ST_SetSRID(ST_MakePoint(:from_lon, :from_lat), 4326)::geography, :radius)
+            ),
+            routes_near_dest AS (
+                SELECT DISTINCT p.id as pattern3_id, p.id_linea as linea3_id,
+                       l3.short_name as short_name3, l3.nombre as linea3,
+                       l3.color as color3, l3.text_color as text_color3
+                FROM transporte.patterns p
+                JOIN transporte.lineas l3 ON p.id_linea = l3.id_linea
+                WHERE p.geometry IS NOT NULL AND l3.activa = true
+                AND ST_DWithin(p.geometry::geography,
+                    ST_SetSRID(ST_MakePoint(:to_lon, :to_lat), 4326)::geography, :radius)
+            ),
+            middle_routes AS (
+                SELECT DISTINCT p.id as pattern2_id, p.id_linea as linea2_id,
+                       l2.short_name as short_name2, l2.nombre as linea2,
+                       l2.color as color2, l2.text_color as text_color2
+                FROM transporte.patterns p
+                JOIN transporte.lineas l2 ON p.id_linea = l2.id_linea
+                WHERE p.geometry IS NOT NULL AND l2.activa = true
+            ),
+            triple_combinations AS (
+                SELECT 
+                    ro.pattern1_id, ro.linea1, ro.short_name1, ro.color1, ro.text_color1,
+                    mr.pattern2_id, mr.linea2, mr.short_name2, mr.color2, mr.text_color2,
+                    rd.pattern3_id, rd.linea3, rd.short_name3, rd.color3, rd.text_color3,
+                    ST_ClosestPoint(p1.geometry, p2.geometry) as transfer1_point,
+                    ST_ClosestPoint(p2.geometry, p3.geometry) as transfer2_point
+                FROM routes_near_origin ro
+                JOIN middle_routes mr ON ro.linea1_id != mr.linea2_id
+                JOIN routes_near_dest rd ON mr.linea2_id != rd.linea3_id AND ro.linea1_id != rd.linea3_id
+                JOIN transporte.patterns p1 ON ro.pattern1_id = p1.id
+                JOIN transporte.patterns p2 ON mr.pattern2_id = p2.id
+                JOIN transporte.patterns p3 ON rd.pattern3_id = p3.id
+                WHERE ST_DWithin(p1.geometry::geography, p2.geometry::geography, 500)
+                AND ST_DWithin(p2.geometry::geography, p3.geometry::geography, 500)
+            )
+            SELECT 
+                tc.*,
+                ST_Y(tc.transfer1_point) as transfer1_lat,
+                ST_X(tc.transfer1_point) as transfer1_lon,
+                ST_Y(tc.transfer2_point) as transfer2_lat,
+                ST_X(tc.transfer2_point) as transfer2_lon
+            FROM triple_combinations tc
+            LIMIT 50
+        """)
+        
+        try:
+            return db.execute(query, {
+                "from_lat": from_lat, "from_lon": from_lon,
+                "to_lat": to_lat, "to_lon": to_lon,
+                "radius": radius
+            }).fetchall()
+        except Exception as e:
+            print(f"[RoutePlanner] Error en _find_triple_transfer_routes: {e}")
+            return []
+
+    def _build_triple_transfer_itinerary(self, db: Session, route, from_lat, from_lon, to_lat, to_lon, start_time):
+        """Construye itinerario con 2 transbordos (3 micros)"""
+        try:
+            # Obtener geometrías
+            bus1_coords = self._get_pattern_geometry(db, route.pattern1_id)
+            bus2_coords = self._get_pattern_geometry(db, route.pattern2_id)
+            bus3_coords = self._get_pattern_geometry(db, route.pattern3_id)
+            
+            if not all([bus1_coords, bus2_coords, bus3_coords]):
+                return None
+            
+            # Encontrar puntos en cada línea
+            origin_point, o1 = self._find_closest_point_on_line(bus1_coords, from_lat, from_lon)
+            t1_1, t1_1_idx = self._find_closest_point_on_line(bus1_coords, float(route.transfer1_lat), float(route.transfer1_lon))
+            t1_2, t1_2_idx = self._find_closest_point_on_line(bus2_coords, float(route.transfer1_lat), float(route.transfer1_lon))
+            t2_1, t2_1_idx = self._find_closest_point_on_line(bus2_coords, float(route.transfer2_lat), float(route.transfer2_lon))
+            t2_2, t2_2_idx = self._find_closest_point_on_line(bus3_coords, float(route.transfer2_lat), float(route.transfer2_lon))
+            dest_point, d3 = self._find_closest_point_on_line(bus3_coords, to_lat, to_lon)
+            
+            # Validar orden
+            if o1 >= t1_1_idx or t1_2_idx >= t2_1_idx or t2_2_idx >= d3:
+                return None
+            
+            # Calcular caminata total
+            walk_total = (
+                haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1]) +
+                haversine_distance(t1_1[0], t1_1[1], t1_2[0], t1_2[1]) +
+                haversine_distance(t2_1[0], t2_1[1], t2_2[0], t2_2[1]) +
+                haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+            )
+            
+            if walk_total > 800:  # Máximo 800m para 3 micros
+                return None
+            
+            legs = []
+            current_time = start_time
+            total_walk = 0
+            total_transit = 0
+            total_wait = 0
+            
+            # Leg 1: Caminar a primera línea
+            w1 = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
+            wt1 = self._calculate_walk_time(w1)
+            legs.append(LegSchema(mode="WALK", startTime=current_time,
+                endTime=current_time + wt1*1000, duration=float(wt1), distance=w1,
+                from_=PlaceSchema(lat=from_lat, lon=from_lon, name="Origin"),
+                to=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding"),
+                legGeometry=LegGeometry(points=encode_polyline([(from_lat, from_lon), origin_point]), length=2)))
+            current_time += wt1*1000
+            total_walk += w1
+            
+            # Espera bus 1
+            wait1 = WAIT_TIME_MINUTES * 60
+            current_time += wait1*1000
+            total_wait += wait1
+            
+            # Leg 2: Bus 1 hasta transbordo 1
+            seg1 = bus1_coords[o1:t1_1_idx+1]
+            d1 = sum(haversine_distance(seg1[i][0], seg1[i][1], seg1[i+1][0], seg1[i+1][1]) for i in range(len(seg1)-1))
+            t1 = self._calculate_bus_time(d1)
+            legs.append(LegSchema(mode="BUS", startTime=current_time, endTime=current_time + t1*1000,
+                duration=float(t1), distance=d1, from_=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding"),
+                to=PlaceSchema(lat=t1_1[0], lon=t1_1[1], name="Transfer 1"),
+                route=route.linea1, routeId=route.pattern1_id, routeShortName=route.short_name1,
+                routeColor=route.color1 or "0088FF", routeTextColor=route.text_color1 or "FFFFFF",
+                legGeometry=LegGeometry(points=encode_polyline(seg1), length=len(seg1)), transitLeg=True))
+            current_time += t1*1000
+            total_transit += t1
+            
+            # Leg 3: Caminar entre transbordo 1
+            w2 = haversine_distance(t1_1[0], t1_1[1], t1_2[0], t1_2[1])
+            wt2 = self._calculate_walk_time(w2)
+            legs.append(LegSchema(mode="WALK", startTime=current_time, endTime=current_time + wt2*1000,
+                duration=float(wt2), distance=w2, from_=PlaceSchema(lat=t1_1[0], lon=t1_1[1], name="Transfer 1"),
+                to=PlaceSchema(lat=t1_2[0], lon=t1_2[1], name="Transfer 1"),
+                legGeometry=LegGeometry(points=encode_polyline([t1_1, t1_2]), length=2)))
+            current_time += wt2*1000
+            total_walk += w2
+            
+            # Espera bus 2
+            wait2 = WAIT_TIME_MINUTES * 60
+            current_time += wait2*1000
+            total_wait += wait2
+            
+            # Leg 4: Bus 2 hasta transbordo 2
+            seg2 = bus2_coords[t1_2_idx:t2_1_idx+1]
+            d2 = sum(haversine_distance(seg2[i][0], seg2[i][1], seg2[i+1][0], seg2[i+1][1]) for i in range(len(seg2)-1))
+            t2 = self._calculate_bus_time(d2)
+            legs.append(LegSchema(mode="BUS", startTime=current_time, endTime=current_time + t2*1000,
+                duration=float(t2), distance=d2, from_=PlaceSchema(lat=t1_2[0], lon=t1_2[1], name="Transfer 1"),
+                to=PlaceSchema(lat=t2_1[0], lon=t2_1[1], name="Transfer 2"),
+                route=route.linea2, routeId=route.pattern2_id, routeShortName=route.short_name2,
+                routeColor=route.color2 or "FF5722", routeTextColor=route.text_color2 or "FFFFFF",
+                legGeometry=LegGeometry(points=encode_polyline(seg2), length=len(seg2)), transitLeg=True))
+            current_time += t2*1000
+            total_transit += t2
+            
+            # Leg 5: Caminar entre transbordo 2
+            w3 = haversine_distance(t2_1[0], t2_1[1], t2_2[0], t2_2[1])
+            wt3 = self._calculate_walk_time(w3)
+            legs.append(LegSchema(mode="WALK", startTime=current_time, endTime=current_time + wt3*1000,
+                duration=float(wt3), distance=w3, from_=PlaceSchema(lat=t2_1[0], lon=t2_1[1], name="Transfer 2"),
+                to=PlaceSchema(lat=t2_2[0], lon=t2_2[1], name="Transfer 2"),
+                legGeometry=LegGeometry(points=encode_polyline([t2_1, t2_2]), length=2)))
+            current_time += wt3*1000
+            total_walk += w3
+            
+            # Espera bus 3
+            wait3 = WAIT_TIME_MINUTES * 60
+            current_time += wait3*1000
+            total_wait += wait3
+            
+            # Leg 6: Bus 3 hasta destino
+            seg3 = bus3_coords[t2_2_idx:d3+1]
+            d3_dist = sum(haversine_distance(seg3[i][0], seg3[i][1], seg3[i+1][0], seg3[i+1][1]) for i in range(len(seg3)-1))
+            t3 = self._calculate_bus_time(d3_dist)
+            legs.append(LegSchema(mode="BUS", startTime=current_time, endTime=current_time + t3*1000,
+                duration=float(t3), distance=d3_dist, from_=PlaceSchema(lat=t2_2[0], lon=t2_2[1], name="Transfer 2"),
+                to=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
+                route=route.linea3, routeId=route.pattern3_id, routeShortName=route.short_name3,
+                routeColor=route.color3 or "4CAF50", routeTextColor=route.text_color3 or "FFFFFF",
+                legGeometry=LegGeometry(points=encode_polyline(seg3), length=len(seg3)), transitLeg=True))
+            current_time += t3*1000
+            total_transit += t3
+            
+            # Leg 7: Caminar al destino
+            w4 = haversine_distance(dest_point[0], dest_point[1], to_lat, to_lon)
+            wt4 = self._calculate_walk_time(w4)
+            legs.append(LegSchema(mode="WALK", startTime=current_time, endTime=current_time + wt4*1000,
+                duration=float(wt4), distance=w4, from_=PlaceSchema(lat=dest_point[0], lon=dest_point[1], name="Bus alighting"),
+                to=PlaceSchema(lat=to_lat, lon=to_lon, name="Destination"),
+                legGeometry=LegGeometry(points=encode_polyline([dest_point, (to_lat, to_lon)]), length=2)))
+            current_time += wt4*1000
+            total_walk += w4
+            
+            return ItinerarySchema(legs=legs, startTime=start_time, endTime=current_time,
+                duration=(current_time-start_time)//1000, walkTime=sum([wt1,wt2,wt3,wt4]),
+                walkDistance=walk_total, transfers=2, transitTime=total_transit, waitingTime=total_wait)
+        except Exception as e:
+            print(f"[RoutePlanner] Error en _build_triple_transfer_itinerary: {e}")
+            return None
+
+    def _find_quadruple_transfer_routes(self, db: Session, from_lat: float, from_lon: float,
+                                       to_lat: float, to_lon: float, radius: int = 1500):
+        """Encuentra rutas con 3 transbordos (4 micros) - Solo para casos extremos"""
+        # Similar a triple pero con una línea más
+        # Por ahora retornar vacío - implementar solo si es necesario
+        return []
+
+    def _build_quadruple_transfer_itinerary(self, db: Session, route, from_lat, from_lon, to_lat, to_lon, start_time):
+        """Construye itinerario con 3 transbordos (4 micros) - Solo para casos extremos"""
+        # Por ahora retornar None - implementar solo si es necesario
+        return None
 
     def _find_transfer_routes(self, db: Session, origin_stops, dest_stops):
         """
