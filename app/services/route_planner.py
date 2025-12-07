@@ -585,6 +585,30 @@ class RoutePlanner:
         origin_point, origin_idx = self._find_closest_point_on_line(bus_coords, from_lat, from_lon)
         dest_point, dest_idx = self._find_closest_point_on_line(bus_coords, to_lat, to_lon)
         
+        # Leg 1: Caminar al punto de abordaje
+        walk_dist1 = haversine_distance(from_lat, from_lon, origin_point[0], origin_point[1])
+        walk_time1 = self._calculate_walk_time(walk_dist1)
+        
+        walk_coords1 = [(from_lat, from_lon), origin_point]
+        legs.append(LegSchema(
+            mode="WALK",
+            startTime=current_time,
+            endTime=current_time + (walk_time1 * 1000),
+            duration=float(walk_time1),
+            distance=walk_dist1,
+            from_=PlaceSchema(lat=from_lat, lon=from_lon, name="Origin"),
+            to=PlaceSchema(lat=origin_point[0], lon=origin_point[1], name="Bus boarding"),
+            legGeometry=LegGeometry(points=encode_polyline(walk_coords1), length=len(walk_coords1))
+        ))
+        current_time += walk_time1 * 1000
+        total_walk_time += walk_time1
+        total_walk_dist += walk_dist1
+        
+        # Tiempo de espera
+        wait_time = WAIT_TIME_MINUTES * 60
+        current_time += wait_time * 1000
+        
+        # Leg 2: Viaje en bus
         if origin_idx >= dest_idx:
             # Lógica para Rutas Circulares (Wrap-around)
             # Si el punto de bajada "está antes" que el de subida, podría ser que el bus da la vuelta.
