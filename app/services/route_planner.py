@@ -16,7 +16,7 @@ from app.schemas.otp_schemas import (
 )
 
 # Constantes de velocidad (metros por minuto)
-WALK_SPEED = 80  # ~5 km/h
+WALK_SPEED = 70  # ~4.2 km/h (ligeramente más lento para penalizar caminatas largas)
 BUS_SPEED = 333  # ~20 km/h (promedio considerando paradas y tráfico)
 
 # Tiempos fijos
@@ -91,15 +91,18 @@ class RoutePlanner:
         direct_distance = haversine_distance(from_lat, from_lon, to_lat, to_lon)
         
         # Radio de búsqueda basado en distancia del viaje
+        # Radio de búsqueda basado en distancia del viaje
+        # AJUSTADO: Valores equilibrados. No tan grandes como 2km, pero no tan pequeños como 500m
+        # Si es muy pequeño, NO encuentra paradas y falla o solo da caminata.
         if direct_distance > 5000:  # > 5km
-            geometry_radius = 400  # metros del trazado
-            stop_radius = 2000
+            geometry_radius = 400
+            stop_radius = 1200     # ~1.2km (necesario para encontrar conexiones en distancias largas)
         elif direct_distance > 2000:  # > 2km
             geometry_radius = 350
-            stop_radius = 1800
+            stop_radius = 1000      # ~1km
         else:
             geometry_radius = 300
-            stop_radius = 1500
+            stop_radius = 800      # ~800m
         
         # ===== MÉTODO 1: Buscar rutas por GEOMETRÍA (trazado de la ruta) =====
         # En Santa Cruz los micros paran en cualquier esquina
@@ -149,8 +152,33 @@ class RoutePlanner:
                 if itinerary:
                     itineraries.append(itinerary)
         
-        # 3. Ordenar por duración total y tomar las mejores
-        itineraries.sort(key=lambda x: x.duration)
+        # 3. Ordenar por "Costo Generalizado" en lugar de solo duración
+        # Penaliza caminar (x2.5) y las esperas (x1.5) más que ir sentado en el bus (x1.0)
+        # Penaliza transferencias con un costo fijo (e.g., 5 minutos extra percibidos)
+        def calculate_generalized_cost(itinerary):
+            walk_penalty = 2.5
+            wait_penalty = 1.5
+            transfer_penalty = 300  # 5 minutos de 'dolor' por transbordo
+            
+            # Penalización extra si la caminata es muy larga (> 1km)
+            excess_walk_penalty = 0
+            if itinerary.walkDistance > 1000:
+                excess_walk_penalty = (itinerary.walkDistance - 1000) * 0.5
+
+            cost = (itinerary.transitTime * 1.0) + \
+                   (itinerary.walkTime * walk_penalty) + \
+                   (itinerary.waitingTime * wait_penalty) + \
+                   (itinerary.transfers * transfer_penalty) + \
+                   excess_walk_penalty
+                   
+            return cost
+
+        itineraries.sort(key=calculate_generalized_cost)
+        
+        # Filtrar itinerarios que requieran caminar mucho (> 1.2km) si hay alternativas
+        if len(itineraries) > 1:
+             itineraries = [it for it in itineraries if it.walkDistance < 1200 or it == itineraries[0]]
+
         itineraries = itineraries[:num_itineraries]
         
         # 4. Si aún no hay itinerarios, agregar ruta a pie como fallback
@@ -643,6 +671,9 @@ class RoutePlanner:
 
     def _find_closest_point_on_line(self, coords, lat, lon):
         """Encuentra el punto más cercano en una línea de coordenadas"""
+        if not coords:
+            return (lat, lon), 0
+            
         min_dist = float('inf')
         closest_point = coords[0]
         closest_idx = 0

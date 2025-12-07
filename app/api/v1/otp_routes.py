@@ -40,6 +40,34 @@ def plan_route(
         return PlanResponse(plan=plan)
     except Exception as e:
         print(f"Error planning route: {e}")
-        # Return empty plan on error to avoid crashing app
-        from app.schemas.otp_schemas import PlanSchema
-        return PlanResponse(plan=PlanSchema())
+        # FALLBACK DE EMERGENCIA: devolver ruta caminando en línea recta
+        # Esto evita que la app crashee con "Valid value range is empty"
+        try:
+             # Generar timestamp actual
+            import time
+            current_time = int(time.time() * 1000)
+            
+            # Obtener coords de los params (suponiendo que son válidos por venir de query)
+            from_lat, from_lon = map(float, fromPlace.split(','))
+            to_lat, to_lon = map(float, toPlace.split(','))
+            
+            # Usar el planner para generar solo la caminata
+            fallback_plan = route_planner._build_walk_only_itinerary(
+                from_lat, from_lon, to_lat, to_lon, current_time
+            )
+            
+            # Construir respuesta válida con 1 itinerario
+            from app.schemas.otp_schemas import PlaceSchema, PlanSchema
+            emergency_plan = PlanSchema(
+                itineraries=[fallback_plan],
+                date=current_time,
+                from_=PlaceSchema(lat=from_lat, lon=from_lon, name="Origin"),
+                to=PlaceSchema(lat=to_lat, lon=to_lon, name="Destination")
+            )
+            return PlanResponse(plan=emergency_plan)
+            
+        except Exception as fallback_error:
+            print(f"Emergency fallback failed: {fallback_error}")
+            # Si hasta el fallback falla, recién devolvemos vacío (last resort)
+            from app.schemas.otp_schemas import PlanSchema
+            return PlanResponse(plan=PlanSchema())
